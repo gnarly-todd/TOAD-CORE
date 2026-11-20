@@ -4,6 +4,9 @@ Kraken Mount is GPL-3.0-or-later (LICENSE). The ELF also contains code under the
 below, whose terms require these notices to accompany binary distributions.
 
 - ps5/shim/getpeereid.c, ps5/shim/lockf.c: BSD-2-Clause.
+- dlc_emu 0.3 by drakmor (vendor/dlc_emu, three bundled SPRX files): GPL-3.0, corresponding source https://github.com/drakmor/dlc_emu/tree/0.3.
+- pgo_stub 0.6 by drakmor (vendor/pgo_stub/libScePlayGo.sprx): GPL-3.0, corresponding source https://github.com/drakmor/pgo_stub/tree/0.6.
+  Both emulator sets are taken unmodified from Kraken Mount v0.3.0, credited to their original authors.
 - Rust crates linked into the payload (Cargo.lock), each used under its MIT option: itoa,
   libc, memchr, serde_core, serde_json, zmij.
 - The Rust 1.99.0 standard library (core, alloc, std), built with -Z build-std: MIT OR

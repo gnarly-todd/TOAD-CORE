@@ -17,6 +17,8 @@ if [[ "${TITAN_UNIFIED_STACK:-0}" == 1 ]]; then
   # Fail before compilation if historical source archives or stale binaries are substituted.
   python3 review/verify-unified-payloads.py
   (cd vendor/unified && sha256sum -c --strict SHA256SUMS)
+  (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
+  (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
   features=(--features unified-stack)
 fi
 out=target/ps5

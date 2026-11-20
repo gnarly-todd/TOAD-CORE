@@ -24,9 +24,8 @@ pub const DONE: &str = ".done";
 const LIB_DIRS: [&str; 2] = ["fakelib2/", "fakelib/"];
 /// What the last build created, one path per line relative to the cache dir (written before `.done`).
 const BUILT: &str = ".built";
-/// What fakelib/'s ampr copies came from: `ampr_state` when composed (JSON).
+/// What fakelib/ was composed from: AMPR state, conditional emulator state, PlayGo memo.
 const AMPR_STATE: &str = ".ampr";
-/// pkg caches: the mount point for the pkg's folder at the runtime source mount (launch.rs).
 /// Bundled third-party emulators (GPL-3.0, THIRD_PARTY_NOTICES), released files (ps5/build.sh checks
 /// SHA256SUMS): drakmor/dlc_emu (DLC; its 3 files go together) and drakmor/pgo_stub (PlayGo).
 const DLC_EMU_VERSION: &str = include_str!("../vendor/dlc_emu/VERSION");

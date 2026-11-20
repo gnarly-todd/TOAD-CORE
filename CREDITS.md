@@ -17,6 +17,8 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 | Component | Upstream | Role |
 |---|---|---|
 | Kraken Mount | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount) | Native FPKG/folder mounting, cache, registration and launch code used and adapted in TITAN CORE |
+| dlc_emu 0.3 | [drakmor/dlc_emu](https://github.com/drakmor/dlc_emu/tree/0.3) | Bundled DLC emulator files copied from Kraken Mount v0.3.0 when needed |
+| pgo_stub 0.6 | [drakmor/pgo_stub](https://github.com/drakmor/pgo_stub/tree/0.6) | Bundled PlayGo emulator, added only where needed |
 | ampr-emu-ng 0.4.1 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.4.1) | Owner-supplied, upstream release-matching packed-game runtime; original 0.4.0 custom notice archived |
 | kstuff-fpkg 1.13-dr-test6 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) (historical project reference) | User-supplied resident ELF; exact binary/source revision not verified |
 | ShadowMountPlus 1.7beta12 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | User-supplied resident ELF; exact binary/source revision not verified |

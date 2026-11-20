@@ -56,6 +56,10 @@ Receipt-proven internal packages moved by older TITAN CORE builds can be returne
 
 The verified rename-based restoration replaces the earlier unsupported hard-link approach and preserves the large metadata-snapshot fix. Cache still occupies additional storage. The maintainer confirmed original-path launch and full internal System storage sizes on the development console with 0.5.7; later installer/UI changes have local tests and require their documented hardware checks. This uses the native cache/mount engine for supported debug FPKGs.
 
+## Kraken Mount v0.3 integration (partial)
+
+This TOAD-CORE fork now bundles upstream AMPR 0.4.1, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken v0.3's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulator injection, and preservation of newer game-supplied AMPR libraries. **This is not yet a full merge of every Kraken v0.3 feature**. Specifically, v0.3 scan stability/removal, title sound/localization, and USB unmount still require separate integration and console validation. The custom TOAD installer, original-path installations, and ShadowMount coordination remain unchanged.
+
 ## Features
 
 - Dashboard and game library for supported debug FPKGs, folders and image sources, including exFAT.
