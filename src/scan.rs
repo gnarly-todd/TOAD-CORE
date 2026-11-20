@@ -37,7 +37,38 @@ pub struct ScanResult {
     pub games: Vec<Source>,
     pub duplicates: Vec<Source>,
     pub errors: Vec<(PathBuf, String)>,
+    /// Sources currently being written. Keep any previously observed library entries.
+    pub unstable: Vec<(PathBuf, Option<String>)>,
 }
+
+/// Seconds since the youngest max(mtime, ctime) of `paths` when that is under `wait` (SMP
+/// sm_stability.c); None = stable. A clock in the future (negative age) counts as stable, as in SMP.
+/// A path that cannot be stat'ed is ignored here (the scan reports it).
+pub fn still_written(paths: &[PathBuf], wait: u64) -> Option<u64> {
+    use std::os::unix::fs::MetadataExt;
+    if wait == 0 {
+        return None;
+    }
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).ok()?.as_secs() as i64;
+    paths.iter().filter_map(|p| fs::metadata(p).ok())
+        .map(|m| now - m.mtime().max(m.ctime()))
+        .filter(|&age| (0..wait as i64).contains(&age))
+        .min()
+        .map(|age| age as u64)
+}
+
+/// Records an unstable source; logs it once until it is stable again.
+fn skip_unstable(result: &mut ScanResult, path: PathBuf, tid: Option<String>, age: u64) {
+    let logged = UNSTABLE.get_or_init(|| Mutex::new(HashSet::new()));
+    if logged.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone()) {
+        let label = tid.clone().unwrap_or_else(|| path.display().to_string());
+        log!("{label}: source still being written (changed {age} s ago), waiting");
+    }
+    result.unstable.push((path, tid));
+}
+
+/// Unstable sources already logged.
+static UNSTABLE: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 type PkgParam = Result<(String, String, String), String>;
 type PkgMemo = HashMap<PathBuf, (u64, SystemTime, PkgParam)>;
@@ -139,8 +170,8 @@ fn scan_error(result: &mut ScanResult, path: PathBuf, error: impl std::fmt::Disp
 /// Last logged scan error per path.
 static LOGGED: OnceLock<Mutex<HashMap<PathBuf, String>>> = OnceLock::new();
 
-pub fn scan(roots: &[String], backports: bool) -> ScanResult {
-    let mut result = ScanResult { games: Vec::new(), duplicates: Vec::new(), errors: Vec::new() };
+pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResult {
+    let mut result = ScanResult { games: Vec::new(), duplicates: Vec::new(), errors: Vec::new(), unstable: Vec::new() };
     let mut seen = HashSet::new();
     let cached = cached_pkgs();
     let installed_roots = crate::installer::roots();
@@ -185,6 +216,12 @@ pub fn scan(roots: &[String], backports: bool) -> ScanResult {
                     }) {
                     continue;
                 }
+                // Skip partially copied packages before reading the header, preserving last good state.
+                if let Some(age) = still_written(std::slice::from_ref(&path), stability_wait) {
+                    let tid = cached.get(&path).cloned();
+                    skip_unstable(&mut result, path, tid, age);
+                    continue;
+                }
                 let mtime = match metadata.modified() {
                     Ok(mtime) => mtime,
                     Err(e) => {
@@ -199,6 +236,12 @@ pub fn scan(roots: &[String], backports: bool) -> ScanResult {
                 (Kind::Pkg, metadata.len(), param)
             } else if metadata.is_dir() && path.file_name().is_some_and(|n| n != "backports")
                 && path.join("eboot.bin").is_file() && path.join("sce_sys/param.json").is_file() {
+                let probe = [path.clone(), path.join("sce_sys"), path.join("sce_sys/param.json"), path.join("eboot.bin")];
+                if let Some(age) = still_written(&probe, stability_wait) {
+                    let tid = cached.get(&path).cloned();
+                    skip_unstable(&mut result, path, tid, age);
+                    continue;
+                }
                 let packing = if path.join("ampr_zstd.index").is_file() {
                     Packing::Zstd
                 } else if path.join("ampr_assets.index").is_file() {
@@ -239,6 +282,11 @@ pub fn scan(roots: &[String], backports: bool) -> ScanResult {
     if let Some(logged) = LOGGED.get() {
         let errors: HashSet<&PathBuf> = result.errors.iter().map(|(p, _)| p).collect();
         logged.lock().unwrap_or_else(|e| e.into_inner()).retain(|p, _| errors.contains(p));
+    }
+    // A stable source can be reported as newly unstable if copying restarts.
+    if let Some(logged) = UNSTABLE.get() {
+        let unstable: HashSet<&PathBuf> = result.unstable.iter().map(|(p, _)| p).collect();
+        logged.lock().unwrap_or_else(|e| e.into_inner()).retain(|p| unstable.contains(p));
     }
     result
 }
