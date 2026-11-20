@@ -27,6 +27,21 @@ const BUILT: &str = ".built";
 /// What fakelib/'s ampr copies came from: `ampr_state` when composed (JSON).
 const AMPR_STATE: &str = ".ampr";
 /// pkg caches: the mount point for the pkg's folder at the runtime source mount (launch.rs).
+/// Bundled third-party emulators (GPL-3.0, THIRD_PARTY_NOTICES), released files (ps5/build.sh checks
+/// SHA256SUMS): drakmor/dlc_emu (DLC; its 3 files go together) and drakmor/pgo_stub (PlayGo).
+const DLC_EMU_VERSION: &str = include_str!("../vendor/dlc_emu/VERSION");
+const PGO_STUB_VERSION: &str = include_str!("../vendor/pgo_stub/VERSION");
+/// (file name, contents, project, is the DLC set).
+const EMUS: [(&str, &[u8], &str, bool); 4] = [
+    ("libSceAppContent.sprx", include_bytes!("../vendor/dlc_emu/libSceAppContent.sprx"), "dlc_emu", true),
+    ("libSceNpEntitlementAccess.sprx", include_bytes!("../vendor/dlc_emu/libSceNpEntitlementAccess.sprx"), "dlc_emu", true),
+    ("libSceGameUpdate.sprx", include_bytes!("../vendor/dlc_emu/libSceGameUpdate.sprx"), "dlc_emu", true),
+    ("libScePlayGo.sprx", include_bytes!("../vendor/pgo_stub/libScePlayGo.sprx"), "pgo_stub", false),
+];
+/// dlc_emu's config at the game root: its presence asks for the DLC set.
+const DLC_INI: &str = "dlc_emu.ini";
+/// An import of libScePlayGo in a decrypted eboot.bin: its module name as a plain string.
+const PLAYGO_NEEDLE: &[u8] = b"libScePlayGo";
 pub const PKG_MOUNT_DIR: &str = "kraken";
 /// pkg caches: one line, no newline, the .pkg relative to /app0 (the source mount plus file name); ng opens /app0/ + it.
 const IMAGE_FILE: &str = "kraken.image";
@@ -383,6 +398,197 @@ fn ampr_copied(name: &str) -> bool {
     !name.eq_ignore_ascii_case("libkernel.sprx")
 }
 
+/// Parse a three-component version without the upstream main.rs auto-update subsystem.
+fn parse_ng_version(text: &str) -> Option<(u32, u32, u32)> {
+    let mut components = text.trim_start_matches('v').split('.');
+    let v = (components.next()?.parse().ok()?, components.next()?.parse().ok()?,
+        components.next()?.parse().ok()?);
+    if components.next().is_some() { None } else { Some(v) }
+}
+
+/// The entry of `dir` named `name`, compared case-insensitively. Missing dir: None.
+fn find_ci(dir: &Path, name: &str) -> Option<PathBuf> {
+    fs::read_dir(dir).into_iter().flatten().flatten()
+        .find(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(name))
+        .map(|e| e.path())
+}
+
+/// Known older releases of the bundled emulators, (file name, len, crc32), each in its two builds:
+/// dlc_emu 0.1a and 0.2, pgo_stub 0.4 and 0.5. A fakelib copy matching one is upgraded.
+/// ponytail: the binaries carry no version string, so only these known releases are upgraded; any
+/// other copy (custom, the bundled release, a log build of it) is left alone: no downgrade.
+const OLD_EMUS: [(&str, u64, u32); 14] = [
+    ("libSceAppContent.sprx", 39366, 0xcb58_8874),
+    ("libSceAppContent.sprx", 31174, 0x641c_afda),
+    ("libSceNpEntitlementAccess.sprx", 37414, 0x548e_8426),
+    ("libSceNpEntitlementAccess.sprx", 33206, 0x4b1d_e94a),
+    ("libSceAppContent.sprx", 35558, 0x518e_6f93),
+    ("libSceAppContent.sprx", 28966, 0x1c74_5846),
+    ("libSceGameUpdate.sprx", 10326, 0x4820_0ddd),
+    ("libSceGameUpdate.sprx", 9110, 0x226b_c515),
+    ("libSceNpEntitlementAccess.sprx", 37750, 0xaf0f_f584),
+    ("libSceNpEntitlementAccess.sprx", 33222, 0xebad_2e15),
+    ("libScePlayGo.sprx", 17430, 0x9bdb_d12e),
+    ("libScePlayGo.sprx", 11590, 0x3163_6f06),
+    ("libScePlayGo.sprx", 20582, 0x46bc_f017),
+    ("libScePlayGo.sprx", 14390, 0xb801_64e7),
+];
+
+/// Whether `data`, a file named `name` (case-insensitive), is a known older release (OLD_EMUS).
+fn old_emu(name: &str, data: &[u8]) -> bool {
+    OLD_EMUS.iter().any(|&(n, len, crc)| {
+        n.eq_ignore_ascii_case(name) && data.len() as u64 == len && ampr_index::crc32(&[data]) == crc
+    })
+}
+
+/// old_emu for the file at `path`, read only when its size is a known one.
+fn old_emu_file(path: &Path, name: &str) -> bool {
+    let Ok(len) = fs::metadata(path).map(|m| m.len()) else { return false };
+    OLD_EMUS.iter().any(|&(n, l, _)| l == len && n.eq_ignore_ascii_case(name))
+        && fs::read(path).is_ok_and(|d| old_emu(name, &d))
+}
+
+/// ng's library file name, in the ampr dir and in a game's fakelib.
+const AMPR_LIB: &str = "libSceAmpr.sprx";
+/// ng's embedded identity, followed by its X.Y.Z version (plain bytes).
+const NG_ID: &[u8] = b"ampr-emu-ng ";
+
+/// The version text of the first `ampr-emu-ng X.Y.Z` identity of `data` that parses
+/// (crate::parse_version); None for no identity (upstream ampr_emu, anything else).
+fn ng_version(data: &[u8]) -> Option<&str> {
+    data.windows(NG_ID.len()).enumerate().filter(|(_, w)| *w == NG_ID).find_map(|(i, _)| {
+        let rest = &data[i + NG_ID.len()..];
+        let end = rest.iter().position(|b| !(b.is_ascii_digit() || *b == b'.' || *b == b'v')).unwrap_or(rest.len());
+        std::str::from_utf8(&rest[..end]).ok().filter(|v| parse_ng_version(v).is_some())
+    })
+}
+
+/// Whether the game's own ng is newer than ours (crate::newer): `game` must be an ampr-emu-ng, an
+/// `ours` without identity is older than any.
+fn game_ng_newer(game: Option<&str>, ours: Option<&str>) -> bool {
+    match (game.and_then(parse_ng_version), ours.and_then(parse_ng_version)) {
+        (Some(g), Some(o)) => g > o,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+/// Whether to keep the game's or backport's libSceAmpr.sprx in `fakelib` over AMPR_DIR's: only an
+/// ampr-emu-ng strictly newer than AMPR_DIR's (logged). ponytail: a hand-placed ampr build in
+/// AMPR_DIR also loses to a newer game copy.
+fn keep_game_ng(tid: &str, fakelib: &Path) -> bool {
+    let (Some(game), Some(ours)) = (find_ci(fakelib, AMPR_LIB), find_ci(Path::new(AMPR_DIR), AMPR_LIB)) else {
+        return false;
+    };
+    let v = |p: &Path| fs::read(p).ok().and_then(|d| ng_version(&d).map(str::to_owned));
+    let (g, o) = (v(&game), v(&ours));
+    let keep = game_ng_newer(g.as_deref(), o.as_deref());
+    if keep {
+        let fmt = |v: &Option<String>| v.clone().unwrap_or_else(|| "an unknown build".into());
+        log!("{tid}: fakelib: kept the game's ampr-emu-ng {} (newer than {})", fmt(&g), fmt(&o));
+    }
+    keep
+}
+
+/// dlc_emu.ini at a folder game's root or the backport's root (a pkg's own is checked in compose_fakelib).
+/// Exact name: dlc_emu opens /app0/dlc_emu.ini, and the internal SSD is case-sensitive.
+fn dlc_ini_on_disk(src: &Source) -> bool {
+    (matches!(src.kind, Kind::Folder(_)) && src.path.join(DLC_INI).is_file())
+        || src.backport.as_ref().is_some_and(|b| b.join(DLC_INI).is_file())
+}
+
+/// The eboot.bin searched for a PlayGo import: the backport's if it has one, else the folder's,
+/// else (pkg) the cache's extracted copy.
+fn eboot(src: &Source) -> PathBuf {
+    match &src.backport {
+        Some(b) if b.join("eboot.bin").is_file() => b.join("eboot.bin"),
+        _ if src.kind == Kind::Pkg => dir(&src.title_id).join("eboot.bin"),
+        _ => src.path.join("eboot.bin"),
+    }
+}
+
+/// What the emulator choice depends on, stat only (no eboot read): null without add_emulators.
+/// ponytail: a pkg's own dlc_emu.ini is not here; a pkg change rebuilds through the stamp.
+fn emu_state(src: &Source, s: &Settings) -> serde_json::Value {
+    if !s.add_emulators {
+        return serde_json::Value::Null;
+    }
+    let eboot = fs::metadata(eboot(src)).ok().map(|m| (m.len(), m.modified().map(secs).unwrap_or(0)));
+    serde_json::json!({
+        "dlc_emu": DLC_EMU_VERSION.trim(),
+        "pgo_stub": PGO_STUB_VERSION.trim(),
+        "dlc_ini": dlc_ini_on_disk(src),
+        "eboot": eboot,
+    })
+}
+
+/// The AMPR_STATE contents for `src` now.
+fn fakelib_state(src: &Source, s: &Settings) -> serde_json::Value {
+    serde_json::json!({"ampr": ampr_state(src, s), "emus": emu_state(src, s)})
+}
+
+/// Whether `r` contains `needle` (non-empty), read in `chunk`-sized pieces that overlap by
+/// needle.len() - 1 bytes, so a match across two reads is found.
+fn contains(r: &mut impl std::io::Read, needle: &[u8], chunk: usize) -> Result<bool> {
+    let keep = needle.len().saturating_sub(1);
+    let mut buf = vec![0u8; chunk + keep];
+    let mut have = 0;
+    loop {
+        let n = match r.read(&mut buf[have..]) {
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+            r => r?,
+        };
+        if n == 0 {
+            return Ok(false);
+        }
+        let end = have + n;
+        if buf[..end].windows(needle.len()).any(|w| w == needle) {
+            return Ok(true);
+        }
+        let k = keep.min(end);
+        buf.copy_within(end - k..end, 0);
+        have = k;
+    }
+}
+
+/// Whether the game imports libScePlayGo. ponytail: only eboot.bin is searched, a PlayGo import in
+/// another prx module is missed; an encrypted eboot never matches (no stub, the safe side).
+/// A missing eboot: false. A read error: logged with the title id and path, None (taken as false,
+/// not memoized).
+fn wants_playgo(src: &Source) -> Option<bool> {
+    let path = eboot(src);
+    let found = File::open(&path).and_then(|mut f| contains(&mut f, PLAYGO_NEEDLE, CHUNK));
+    match found {
+        Ok(b) => Some(b),
+        Err(e) if e.kind() == ErrorKind::NotFound => Some(false),
+        Err(e) => {
+            log!("{}: {}: PlayGo check: {e}", src.title_id, path.display());
+            None
+        }
+    }
+}
+
+/// wants_playgo, memoized in AMPR_STATE's "playgo" as [len, mtime secs, result] of the eboot:
+/// `had` is the previous AMPR_STATE, `state` the one being written (gets the memo).
+/// ponytail: an eboot rewritten with the same size and second keeps the old result.
+fn wants_playgo_memo(src: &Source, had: &serde_json::Value, state: &mut serde_json::Value) -> bool {
+    let Some((len, mtime)) = fs::metadata(eboot(src)).ok().map(|m| (m.len(), m.modified().map(secs).unwrap_or(0))) else {
+        return wants_playgo(src).unwrap_or(false);
+    };
+    let old = &had["playgo"];
+    if old[0].as_u64() == Some(len) && old[1].as_u64() == Some(mtime) {
+        if let Some(b) = old[2].as_bool() {
+            state["playgo"] = old.clone();
+            return b;
+        }
+    }
+    let b = wants_playgo(src);
+    if let Some(b) = b {
+        state["playgo"] = serde_json::json!([len, mtime, b]);
+    }
+    b.unwrap_or(false)
+}
+
 pub fn check(src: &Source, s: &Settings) -> Fresh {
     let done = dir(&src.title_id).join(DONE);
     let Ok(done_mtime) = fs::metadata(&done).and_then(|m| m.modified()) else { return Fresh::Missing };
@@ -412,8 +618,10 @@ pub fn check(src: &Source, s: &Settings) -> Fresh {
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
-    if had != ampr_state(src, s) {
-        return Fresh::Fakelib(format!("{AMPR_DIR} or inject_ampr changed"));
+    // Historical .ampr files were flat maps: refresh them once to populate emulator state.
+    let want = fakelib_state(src, s);
+    if ["ampr", "emus"].iter().any(|&k| had.get(k) != want.get(k)) {
+        return Fresh::Fakelib(format!("{AMPR_DIR}, inject_ampr or bundled emulators changed"));
     }
     Fresh::Fresh
 }
@@ -452,6 +660,37 @@ fn loose(path: String, size: u64) -> IndexFile {
 /// fakelib/ from scratch: the backport's lib dir (all files) if any, else the game's own (pkg:
 /// extracted from `pkg`; folder: copied), filtered by game_fakelib; then the ampr files on top
 /// (inject_ampr). All 0777. Writes AMPR_STATE.
+fn add_emus(tid: &str, fakelib: &Path, dlc: bool, mut playgo: impl FnMut() -> bool) -> Result<()> {
+    // Per entry: None = missing, Some((path, known old, the bundled file itself)).
+    let found: Vec<_> = EMUS.iter().map(|&(name, data, ..)| find_ci(fakelib, name).map(|p| {
+        let old = old_emu_file(&p, name);
+        let current = !old && fs::read(&p).is_ok_and(|b| b == data);
+        (p, old, current)
+    })).collect();
+    // A copy of the bundled release fits the set too: only other content keeps the game's set.
+    let dlc_kept = EMUS.iter().zip(&found).any(|(e, f)| e.3 && f.as_ref().is_some_and(|(_, old, cur)| !old && !cur));
+    if dlc_kept {
+        log!("{tid}: fakelib: kept the game's dlc_emu files (not a known release)");
+    }
+    for (&(name, data, from, is_dlc), f) in EMUS.iter().zip(found) {
+        if is_dlc && dlc_kept {
+            continue;
+        }
+        let version = if is_dlc { DLC_EMU_VERSION } else { PGO_STUB_VERSION }.trim();
+        let (dest, what) = match f {
+            Some((have, true, _)) => (have, "upgraded"),
+            Some(_) => continue,
+            // The eboot is read only when still needed.
+            None if (if is_dlc { dlc } else { playgo() }) => (fakelib.join(name), "added"),
+            None => continue,
+        };
+        fs::write(&dest, data)?;
+        exec_mode(&dest)?;
+        log!("{tid}: fakelib: {what} {name} ({from} {version})");
+    }
+    Ok(())
+}
+
 fn compose_fakelib(src: &Source, s: &Settings, pkg: Option<(&Io, &Pkg)>) -> Result<()> {
     let dir = dir(&src.title_id);
     let fakelib = dir.join("fakelib");
@@ -488,11 +727,23 @@ fn compose_fakelib(src: &Source, s: &Settings, pkg: Option<(&Io, &Pkg)>) -> Resu
         copy_flat(&lib, &fakelib, |n| keep_fakelib(n, s, all_game_libs(two))
             && (two || !n.eq_ignore_ascii_case("libSceSaveData.native.sprx")))?;
     }
-    // Our ampr-emu-ng on top of whatever the game or backport ships (its own libSceAmpr.sprx included).
-    if injects_ampr(src, s) {
-        copy_flat(Path::new(AMPR_DIR), &fakelib, ampr_copied)?;
+    // Capture state before copying: if AMPR changes during a refresh, next scan catches it.
+    let mut state = fakelib_state(src, s);
+    let had: serde_json::Value = fs::read(dir.join(AMPR_STATE)).ok()
+        .and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    if had.get("playgo").is_some() { state["playgo"] = had["playgo"].clone(); }
+    if s.add_emulators {
+        let dlc = dlc_ini_on_disk(src)
+            || pkg.is_some_and(|(_, p)| p.files().any(|e| !e.is_dir && e.path == DLC_INI));
+        add_emus(&src.title_id, &fakelib, dlc, || wants_playgo_memo(src, &had, &mut state))?;
     }
-    fs::write(dir.join(AMPR_STATE), ampr_state(src, s).to_string())
+    if injects_ampr(src, s) {
+        // Preserve a game's own newer ampr-emu-ng when available.
+        let keep = keep_game_ng(&src.title_id, &fakelib);
+        copy_flat(Path::new(AMPR_DIR), &fakelib,
+            |name| ampr_copied(name) && !(keep && name.eq_ignore_ascii_case(AMPR_LIB)))?;
+    }
+    fs::write(dir.join(AMPR_STATE), state.to_string())
 }
 
 /// Recomposes only fakelib/ (Fresh::Fakelib): no extraction besides a pkg's own fakelib, no
