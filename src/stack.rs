@@ -144,9 +144,7 @@ impl Stack {
         let s = self.snapshot.lock().unwrap_or_else(|e| e.into_inner());
         json!({"phase":s.phase,"detail":s.detail,"firmware":s.firmware,"api_port":s.port,
             "kstuff_ready":s.kstuff,"shadowmount_ready":s.shadow,"library_fresh":s.updated,
-            "kstuff_bundle":"1.13-fpkg-dr-test6","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted(),
-            "a53_native":{"firmware_profile":"13.60","state":"unverified","readback_verified_on_console":false,
-                "code_execution_verified":false,"native_fpkg_enabled":false,"pkg_backend":"ampr-emu-ng"}})
+            "kstuff_bundle":"1.13-fpkg-dr-test6","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
     }
     pub fn games(&self) -> Vec<Value> { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).games.clone() }
     pub fn port(&self) -> u16 { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).port }

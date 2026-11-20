@@ -8,30 +8,22 @@ Internal installed PKGs stay in their system path. External installation keeps y
 
 **Known limit:** full external package size in PS5 System storage is not established. The v1.0 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
-يبقى التثبيت الداخلي في مساره الأصلي. التثبيت الخارجي يحتفظ بملف الأرشيف ويعرض حجم اللعبة والذاكرة المؤقتة بشكل منفصل. ملفات PKG الأصلية على USB لا تعمل mount تلقائياً. ظهور الحجم الكامل للخارجية داخل تخزين نظام PS5 ما زال غير محقق.
 
 ## Download the updated TOAD-CORE build
 
 This fork bundles `kstuff-fpkg-1.13-dr-test6.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
-Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `payload` artifact. The generated `TITAN-CORE.elf` is the fork's build output. No PS5 console acceptance test has been performed for the supplied binaries.
+Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `toad-core` artifact. The generated `TITAN-CORE.elf` is the fork's build output. No PS5 console acceptance test has been performed for the supplied binaries.
 
 Close games and reboot the console before switching resident payload versions. Then use your existing jailbroken console/elfldr workflow to load the updated ELF and access `http://<PS5-IP>:8097`. The source tree does not include a jailbreak exploit.
 
-## ⚙️ قبل التشغيل / Before loading TITAN CORE
+## Before loading TITAN CORE
 
 **TOAD-CORE fork payload update:** This fork uses the owner's test ELFs, rather than the upstream TITAN CORE v1.0 bundle. The bundled binaries are checksum-verified at build time but have **not** been validated on PS5 hardware. A reboot is required before loading the updated TITAN CORE ELF if older standalone/bundled kstuff or ShadowMount processes are resident. Source/binary provenance: [vendor/unified/PROVENANCE.md](vendor/unified/PROVENANCE.md).
 
-**TITAN CORE يتضمن kstuff-fpkg وShadowMountPlus ويبدأ تشغيلهما تلقائياً. / This TOAD-CORE fork bundles user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 and starts them automatically.**
+**This TOAD-CORE fork bundles user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 and starts them automatically.**
 
-### بالعربية
-
-- إذا كنت كتستعمل **kstuff أو ShadowMount كـpayloads مستقلّة**، عطّل تشغيلهما التلقائي أو احذف إدخالاتهما من لائحة **autoload / Payload Manager** الخاصة بهاد الإعداد. شغّل **TITAN CORE فقط** عوض تشغيل الحزم الثلاث كل واحدة بوحدها.
-- المقصود هو إزالة **التشغيل المنفصل** لهذين المكوّنين؛ لا تحذف ملفات الجيلبريك أو elfldr أو ملفات الألعاب، ولا تحذف المكونات المضمّنة داخل TITAN CORE.
-- إذا كانا مشغّلين من قبل، أغلق الألعاب وأعد تشغيل الجهاز لبدء جلسة جديدة، ثم فعّل الجيلبريك وelfldr بالطريقة المعتادة وحمّل ELF ديال TITAN CORE مرة واحدة.
-- TITAN CORE لا يتضمن استغلال الجيلبريك نفسه؛ ما زلت تحتاج إلى الجيلبريك وأداة تحميل ELF. يمكن مراجعة حالة الخدمات في Dashboard وDiagnostics.
-
-### English
+### Loading instructions
 
 - If you previously loaded **standalone kstuff or ShadowMount payloads**, disable their automatic loading or remove their entries from your **autoload / Payload Manager** list for this setup. Load **TITAN CORE only**, instead of loading all three separately.
 - Remove the **separate launch entries**; you do not need to delete jailbreak, elfldr or game files. Keep TITAN CORE's bundled components intact.
@@ -106,6 +98,11 @@ GitHub's language percentages measure classified source bytes; they do not measu
 
 The source uses Rust 1.99.0 and PS5 payload SDK 0.43 in the Docker build. Keep compiler parallelism at two jobs.
 
+**Production/research isolation:** The A53 research tools under `review/a53-1360/` are separate and are not linked into `TITAN-CORE.elf`. The production build does not run those diagnostic scripts or embed the diagnostic ELFs. It continues using the pinned kstuff-fpkg, ShadowMountPlus, AMPR and conditional emulator components. A53 code execution and native A53 FPKG handling on firmware 13.60 have not been demonstrated by these diagnostics.
+
+The downloadable GitHub Actions artifact is named `toad-core` and contains `TITAN-CORE.elf` and `SHA256SUMS`. If GitHub Actions does not start a run, build locally with the command below; editing `build.yml` alone does not create a new ELF.
+
+
 ```sh
 TITAN_UNIFIED_STACK=1 bash ps5/build.sh
 ```
@@ -130,22 +127,19 @@ The Installer Internal choice now commits the new package to `/user/app/<TITLE_I
 
 ## Launch notice and game-folder help — 0.6.2-beta.1
 
-The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TOAD-CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders / Dossiers des jeux** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
+The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TOAD-CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
 
 ## Preserve your PKG archive — 0.6.3-beta.1
 
 Installing to an external disk keeps the original PKG exactly where it was, even if the source and destination are the same disk. TITAN creates a separate verified copy in `TITAN-CORE/Games/<TITLE_ID>/`. This needs additional space for the complete package plus working reserve; insufficient space stops installation without moving or deleting the original. Existing internal `/user/app` games stay in place. See [validation](docs/PRESERVE_EXTERNAL_SOURCE_VALIDATION.md).
 
-يبقى ملف PKG الأصلي في مكانه بعد التثبيت، حتى على نفس القرص الخارجي. ينشئ TITAN نسخة للألعاب داخل `TITAN-CORE/Games/<TITLE_ID>/`؛ يجب توفير مساحة للنسخة الكاملة.
 
 ## External PKGs require installation — 0.6.4-beta.1
 
 Connecting an external drive no longer auto-registers or mounts its download PKGs. Browse those originals in Installer and choose a destination. Only receipt-proven TITAN external installations (`TITAN-CORE/Games/<TITLE_ID>/<TITLE_ID>.pkg`) or recognized system-installed PKGs enter native game preparation. A folder with that name alone does not prove installation. Originals stay archived and are excluded from playable-library duplicates, even with custom scan folders. Internal PKGs, external extracted-game folders and image handling keep their existing behavior. Existing archives are not deleted. See [validation](docs/EXTERNAL_INSTALL_ONLY_VALIDATION.md).
 
-ملفات PKG الأصلية في القرص الخارجي تظهر في المثبّت فقط، ولا يتم تجهيزها أو عمل mount لها بمجرد توصيل القرص. بعد التثبيت يعتمد TITAN نسخة اللعبة في مسار التثبيت، مع الاحتفاظ بملف الأرشيف الأصلي.
 
 ## External installed label and measured size — 0.6.5-beta.1
 
 Receipt-proven external installations now show **PKG · External installed** with the actual drive, package size and internal cache listed separately. Original external installer archives remain Installer-only. System-installed/internal package behavior is unchanged. This display update does not change PS5 System storage accounting; full external accounting remains unverified. See [validation and investigation](docs/EXTERNAL_STATUS_VALIDATION.md).
 
-تظهر النسخة الخارجية المعتمدة باسم «مثبّتة خارجياً»، مع القرص والحجم الحقيقي للحزمة وحجم الذاكرة المؤقتة الداخلية بشكل منفصل. حساب التخزين داخل نظام PS5 لم يتغيّر بهذه النسخة.
