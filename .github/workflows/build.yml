@@ -36,6 +36,8 @@ jobs:
             target
           key: host-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: host-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-
+      - name: Verify pinned user-supplied ELF payloads
+        run: python3 review/verify-unified-payloads.py
       - name: cargo check --workspace
         run: cargo check --workspace --features unified-stack --locked --target x86_64-unknown-freebsd
       - name: node --check (src/ui.html script)
