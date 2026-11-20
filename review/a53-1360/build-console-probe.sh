@@ -2,6 +2,14 @@
 # Experimental A53 layout/readback ELF builder for PS5 Pro, firmware 13.60.
 # Does not run the payload or change TOAD-CORE's existing AMPR loader.
 set -euo pipefail
+# This user's console is an ORIGINAL PS5, not the PS5 Pro used for the research.
+# This helper must be consciously unlocked only for independently confirmed Pro units.
+if [[ "${TOAD_CONFIRMED_PS5_PRO_1360:-}" != "YES" ]]; then
+  printf '%s\n' "BUILD REFUSED: This A53 probe is validated only on PS5 Pro at 13.60." >&2
+  printf '%s\n' "For an original PS5 or Slim, do NOT build or load this experiment." >&2
+  printf '%s\n' "The user's original PS5 needs an independently validated model-specific probe." >&2
+  exit 2
+fi
 cd "$(dirname "$0")/../.."
 
 SOURCE_COMMIT=13aa9d900ab87eb4ec89191091131f9b7620d243
