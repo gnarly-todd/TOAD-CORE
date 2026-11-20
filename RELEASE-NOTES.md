@@ -1,4 +1,4 @@
-# TOAD-CORE fork payload integration (2026-11-20)
+# TITAN CORE fork payload integration (2026-11-20)
 
 This fork's source embeds user-supplied kstuff 1.13 FPKG DR Test 6 and ShadowMountPlus 1.7beta12. Download a newly built artifact through the fork's GitHub Actions workflow; the upstream v1.0 download below is a **historical upstream release**, not the updated fork. New console hardware compatibility remains unverified.
 

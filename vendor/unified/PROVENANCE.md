@@ -1,6 +1,6 @@
 # Unified payload provenance — 2026-11-20
 
-This TOAD-CORE fork embeds the owner's two supplied ELF files in place of the original TITAN CORE bundled runtime payloads:
+This TITAN CORE fork embeds the owner's two supplied ELF files in place of the original TITAN CORE bundled runtime payloads:
 
 - `kstuff-fpkg-1.13-dr-test6.elf` — SHA-256 `b1f60c1ec1685904d396da16710dc9d5676bf0880abf74c65459c886010b9443`, 1,818,680 bytes. Embedded strings report `Welcome To Kstuff Lite 1.13-fpkg-dr-test6`.
 - `shadowmountplus.elf` — SHA-256 `8755172ec9bef1bff5453ea75606e0caf7c41b5963f94f5a1087e7e8c6d9b1bd`, 3,626,576 bytes. Embedded strings report `1.7beta12`.

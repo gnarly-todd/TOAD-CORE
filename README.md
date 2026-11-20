@@ -9,19 +9,19 @@ Internal installed PKGs stay in their system path. External installation keeps y
 **Known limit:** full external package size in PS5 System storage is not established. The v1.0 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
 
-## Download the updated TOAD-CORE build
+## Download the updated TITAN CORE build
 
 This fork bundles `kstuff-fpkg-1.13-dr-test6.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
-Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `toad-core` artifact. The generated `toad-core.elf` is the fork's downloadable ELF. It explicitly names its main process `toad-core.elf` at startup, independent of upload filename, so the Active Processes list can identify it. No PS5 console acceptance test has been performed for the supplied binaries.
+Open [TITAN CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `payload` artifact. The generated `TITAN-CORE.elf` is the fork's downloadable ELF. It explicitly names its main process `titan-core.elf` at startup, independent of upload filename, so the Active Processes list can identify it. No PS5 console acceptance test has been performed for the supplied binaries.
 
 Close games and reboot the console before switching resident payload versions. Then use your existing jailbroken console/elfldr workflow to load the updated ELF and access `http://<PS5-IP>:8097`. The source tree does not include a jailbreak exploit.
 
 ## Before loading TITAN CORE
 
-**TOAD-CORE fork payload update:** This fork uses the owner's test ELFs, rather than the upstream TITAN CORE v1.0 bundle. The bundled binaries are checksum-verified at build time but have **not** been validated on PS5 hardware. A reboot is required before loading the updated TITAN CORE ELF if older standalone/bundled kstuff or ShadowMount processes are resident. Source/binary provenance: [vendor/unified/PROVENANCE.md](vendor/unified/PROVENANCE.md).
+**TITAN CORE fork payload update:** This fork uses the owner's test ELFs, rather than the upstream TITAN CORE v1.0 bundle. The bundled binaries are checksum-verified at build time but have **not** been validated on PS5 hardware. A reboot is required before loading the updated TITAN CORE ELF if older standalone/bundled kstuff or ShadowMount processes are resident. Source/binary provenance: [vendor/unified/PROVENANCE.md](vendor/unified/PROVENANCE.md).
 
-**This TOAD-CORE fork bundles user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 and starts them automatically.**
+**This TITAN CORE fork bundles user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 and starts them automatically.**
 
 ### Loading instructions
 
@@ -50,7 +50,7 @@ The verified rename-based restoration replaces the earlier unsupported hard-link
 
 ## Kraken Mount v0.3 integration (partial)
 
-This TOAD-CORE fork now bundles upstream AMPR 0.4.1, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken v0.3's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulator injection, and preservation of newer game-supplied AMPR libraries. **This is not yet a full merge of every Kraken v0.3 feature**. Specifically, v0.3 scan stability/removal, title sound/localization, and USB unmount still require separate integration and console validation. The custom TOAD installer, original-path installations, and ShadowMount coordination remain unchanged.
+This TITAN CORE fork now bundles upstream AMPR 0.4.1, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken v0.3's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulator injection, and preservation of newer game-supplied AMPR libraries. **This is not yet a full merge of every Kraken v0.3 feature**. Specifically, v0.3 scan stability/removal, title sound/localization, and USB unmount still require separate integration and console validation. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
 
 ## Features
 
@@ -98,12 +98,12 @@ GitHub's language percentages measure classified source bytes; they do not measu
 
 The source uses Rust 1.99.0 and PS5 payload SDK 0.43 in the Docker build. Keep compiler parallelism at two jobs.
 
-**Active process name:** `toad-core.elf`. The PS5 startup shim uses `thr_set_name` on the main thread before Rust starts, the same mechanism used by PS5 Payload Manager. This is independent of the GitHub artifact name or Cargo crate name. The internal saved payload path remains `/data/titan-core/titan-core.elf` for compatibility, but loading that stage also sets the visible name. Fully stop an existing TITAN/TOAD process or reboot before injecting the updated binary, or both processes could be listed.
+**Active process name:** `titan-core.elf`. The PS5 startup shim uses `thr_set_name` on the main thread before Rust starts, the same mechanism used by PS5 Payload Manager. This is independent of the GitHub artifact name or Cargo crate name. The internal saved payload path remains `/data/titan-core/titan-core.elf` for compatibility, but loading that stage also sets the visible name. Fully stop an existing TITAN CORE process or reboot before injecting the updated binary, or both processes could be listed.
 
 
-**Production/research isolation:** The A53 research tools under `review/a53-1360/` are separate and are not linked into `toad-core.elf`. The production build does not run those diagnostic scripts or embed the diagnostic ELFs. It continues using the pinned kstuff-fpkg, ShadowMountPlus, AMPR and conditional emulator components. A53 code execution and native A53 FPKG handling on firmware 13.60 have not been demonstrated by these diagnostics.
+**Production/research isolation:** The A53 research tools under `review/a53-1360/` are separate and are not linked into the production ELF. The production build does not run those diagnostic scripts or embed the diagnostic ELFs. It continues using the pinned kstuff-fpkg, ShadowMountPlus, AMPR and conditional emulator components. A53 code execution and native A53 FPKG handling on firmware 13.60 have not been demonstrated by these diagnostics.
 
-The downloadable GitHub Actions artifact is named `toad-core` and contains `toad-core.elf` and `SHA256SUMS`. If GitHub Actions does not start a run, build locally with the command below; editing `build.yml` alone does not create a new ELF.
+The downloadable GitHub Actions artifact is named `payload` and contains `TITAN-CORE.elf` and `SHA256SUMS`. If GitHub Actions does not start a run, build locally with the command below; editing `build.yml` alone does not create a new ELF.
 
 
 ```sh
@@ -130,7 +130,7 @@ The Installer Internal choice now commits the new package to `/user/app/<TITLE_I
 
 ## Launch notice and game-folder help — 0.6.2-beta.1
 
-The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TOAD-CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
+The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TITAN CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
 
 ## Preserve your PKG archive — 0.6.3-beta.1
 

@@ -1,4 +1,4 @@
-# AMPR runtime provenance (TOAD-CORE)
+# AMPR runtime provenance (TITAN CORE)
 
 The active `libSceAmpr.sprx` is the **unmodified upstream ampr-emu-ng v0.4.1 release** (quer3q/ampr-emu-ng), SHA-256 `9c7c41b3216bc4f877d67e3c2e5c9c8f9ffabdd5065f4f3fe0dd98fa7228386f`. This binary exactly matches the owner-provided `libSceAmpr.sprx` attachment and the released Kraken Mount v0.3.0 bundled library. Build verification pins its SHA-256.
 

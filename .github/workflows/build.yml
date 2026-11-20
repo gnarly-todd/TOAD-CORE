@@ -66,13 +66,13 @@ jobs:
         run: TITAN_UNIFIED_STACK=1 bash ps5/build.sh
       - name: sha256
         run: |
-          cp target/ps5/titan-core.elf toad-core.elf
-          sha256sum toad-core.elf | tee SHA256SUMS
+          cp target/ps5/titan-core.elf TITAN-CORE.elf
+          sha256sum TITAN-CORE.elf | tee SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: toad-core
+          name: payload
           path: |
-            toad-core.elf
+            TITAN-CORE.elf
             SHA256SUMS
           if-no-files-found: error
 
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: toad-core
+          name: payload
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,4 +98,4 @@ jobs:
             --title "$TAG" \
             --draft \
             --generate-notes \
-            toad-core.elf SHA256SUMS
+            TITAN-CORE.elf SHA256SUMS
