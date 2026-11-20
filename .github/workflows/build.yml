@@ -42,6 +42,8 @@ jobs:
         run: |
           (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
           (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
+      - name: Verify A53 readback parser (host-only synthetic tests)
+        run: python3 -m unittest discover -s review/a53-1360 -p 'test_*.py'
       - name: cargo check --workspace
         run: cargo check --workspace --features unified-stack --locked --target x86_64-unknown-freebsd
       - name: node --check (src/ui.html script)
