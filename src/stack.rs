@@ -15,10 +15,10 @@ pub fn native_title_permitted(tid:&str)->bool{ NATIVE_TITLES.get_or_init(Default
 pub fn native_permitted()->bool{NATIVE_ALLOWED.load(Ordering::Acquire)}
 use std::time::Duration;
 
-const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff-lite-v1.11.elf");
-const SHADOW: &[u8] = include_bytes!("../vendor/unified/shadowmountplus-1.7beta10.elf");
-const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff-lite-v1.11.elf";
-const SHADOW_PATH: &str = "/data/titan-core/payloads/shadowmountplus-1.7beta10.elf";
+const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff-fpkg-1.13-dr-test6.elf");
+const SHADOW: &[u8] = include_bytes!("../vendor/unified/shadowmountplus.elf");
+const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff-fpkg-1.13-dr-test6.elf";
+const SHADOW_PATH: &str = "/data/titan-core/payloads/shadowmountplus.elf";
 // system_tmp is boot-scoped. Never remove another launch's attempt marker.
 #[cfg(target_os = "freebsd")]
 fn boot_identity() -> Option<(u64,u64)> {
@@ -42,7 +42,7 @@ unsafe extern "C" { fn kernel_get_fw_version() -> u32; }
 #[cfg(test)]
 unsafe fn kernel_get_fw_version() -> u32 { panic!("Hardware bootstrap is never run by host tests") }
 
-/// Same read-only KEKCALL_CHECK contract as ShadowMountPlus 1.7beta10.
+/// Read-only KEKCALL_CHECK probe originally based on ShadowMountPlus 1.7beta10; newer binary requires hardware validation.
 #[cfg(all(target_arch = "x86_64", not(test)))]
 fn kstuff_ready() -> bool {
     let mut result: u64 = 0xffff_ffff_0000_0027;
@@ -109,7 +109,7 @@ fn engine_json(port: u16, path: &str, body: Value, seconds: u64) -> Result<Value
     Ok(value)
 }
 fn shadow_ready(port: u16) -> bool {
-    engine_json(port, "/api/v1/version", json!({}), 3).is_ok_and(|v| v["api_version"] == 1 && v["shadowmount_version"].as_str().is_some_and(|v| v.starts_with("1.7")))
+    engine_json(port, "/api/v1/version", json!({}), 3).is_ok_and(|v| v["api_version"] == 1 && v["shadowmount_version"].as_str().is_some_and(|v| v == "1.7beta12"))
 }
 fn install(path: &str, bytes: &[u8]) -> Result<(), String> {
     if fs::read(path).is_ok_and(|b| b == bytes) { return Ok(()); }
@@ -144,7 +144,7 @@ impl Stack {
         let s = self.snapshot.lock().unwrap_or_else(|e| e.into_inner());
         json!({"phase":s.phase,"detail":s.detail,"firmware":s.firmware,"api_port":s.port,
             "kstuff_ready":s.kstuff,"shadowmount_ready":s.shadow,"library_fresh":s.updated,
-            "kstuff_bundle":"1.11","shadowmount_bundle":"1.7beta10","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
+            "kstuff_bundle":"1.13-fpkg-dr-test6","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
     }
     pub fn games(&self) -> Vec<Value> { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).games.clone() }
     pub fn port(&self) -> u16 { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).port }
@@ -241,7 +241,7 @@ impl Stack {
                 install(KSTUFF_PATH, KSTUFF)?; install(SHADOW_PATH, SHADOW)?;
                 // One atomic attempt per boot, including across TITAN restarts.
                 let mut marker = OpenOptions::new().write(true).create_new(true).open(&attempt).map_err(|e| format!("Startup attempt already owned or unavailable: {e}"))?;
-                marker.write_all(b"ShadowMountPlus 1.7beta10 + kstuff-lite 1.11\n").map_err(|e| e.to_string())?;
+                marker.write_all(b"ShadowMountPlus 1.7beta12 + kstuff-fpkg 1.13-dr-test6\n").map_err(|e| e.to_string())?;
                 self.phase("starting", "Starting ShadowMount before kstuff");
                 // ShadowMount creates its no-automount sentinel before waiting for kstuff.
                 if shadow_process {
@@ -256,7 +256,7 @@ impl Stack {
                     }
                     if !sentinel { return Err("ShadowMount startup sentinel not observed; kstuff was not dispatched".into()); }
                     if !kstuff_ready() && !kstuff_process {
-                        self.phase("starting", "Starting pinned kstuff-lite 1.11");
+                        self.phase("starting", "Starting bundled kstuff-fpkg 1.13-dr-test6");
                         if let Err(e) = dispatch(KSTUFF_PATH) { log!("unified: kstuff dispatch uncertain: {e}; not retrying"); }
                     }
                 }
@@ -315,7 +315,7 @@ mod tests {
         (port,handle)
     }
     #[test] fn actual_http_client_frames_json_and_reads_response() {
-        let body = br#"{"status":0,"api_version":1,"shadowmount_version":"1.7beta10"}"#;
+        let body = br#"{"status":0,"api_version":1,"shadowmount_version":"1.7beta12"}"#;
         let mut response = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",body.len()).into_bytes(); response.extend_from_slice(body);
         let (port,worker) = server(response);
         let result = engine_json(port,"/api/v1/version",json!({}),2).unwrap();

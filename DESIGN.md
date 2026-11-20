@@ -2,7 +2,7 @@
 
 ## Runtime
 
-TITAN CORE is a Rust PS5 ELF with a bundled, offline web interface on8097. The unified-stack feature coordinates pinned kstuff-lite1.11 and ShadowMountPlus1.7beta10 as separate resident processes while preserving the native FPKG/folder engine. Readiness, process/boot guards and per-title ownership avoid duplicate component launches and competing overlays.
+TITAN CORE is a Rust PS5 ELF with a bundled, offline web interface on8097. The unified-stack feature coordinates user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 as separate resident processes while preserving the native FPKG/folder engine. Readiness, process/boot guards and per-title ownership avoid duplicate component launches and competing overlays.
 
 App data lives in /data/titan-core. The tile starts the saved /data/titan-core/titan-core.elf. The build has two stages: stage2 embeds/saves stage1. Project package names, build outputs and container image use TITAN CORE. Upstream protocol/index filenames and sandbox names remain compatible.
 

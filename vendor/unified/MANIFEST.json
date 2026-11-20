@@ -1,23 +1,23 @@
 {
-  "retrieved": "2026-11-14",
+  "retrieved": "2026-11-20",
   "components": [
     {
-      "name": "kstuff-lite",
-      "tag": "v1.11",
+      "name": "kstuff-fpkg",
       "repository": "https://github.com/EchoStretch/kstuff-lite",
-      "commit": "85fb88a526e58e357d6f1e626ce05af4acdb8b5d",
-      "file": "kstuff-lite-v1.11.elf",
-      "sha256": "ab9a6cb4d3b1daf139d4d646e402b1cf569071acd64599c936d7a3a6164dc779",
-      "license": "GPL-3.0-or-later (source file headers)"
+      "file": "kstuff-fpkg-1.13-dr-test6.elf",
+      "sha256": "b1f60c1ec1685904d396da16710dc9d5676bf0880abf74c65459c886010b9443",
+      "license": "GPL-3.0-or-later (source file headers)",
+      "embedded_version": "1.13-fpkg-dr-test6",
+      "provenance": "User-supplied ELF; source revision and upstream release identity not independently verified"
     },
     {
       "name": "ShadowMountPlus",
-      "tag": "1.7beta10",
       "repository": "https://github.com/drakmor/ShadowMountPlus",
-      "commit": "a8e400487effa1a63c81943ad16fef2d9ea83cfb",
-      "file": "shadowmountplus-1.7beta10.elf",
-      "sha256": "8c6798232ae2a8fbcd209ab97fc4f8d4d47cf23b7eecfaa6349c0bfeb8e4a3d3",
-      "license": "GPL-3.0 (upstream LICENSE), upstream third-party notices retained"
+      "file": "shadowmountplus.elf",
+      "sha256": "8755172ec9bef1bff5453ea75606e0caf7c41b5963f94f5a1087e7e8c6d9b1bd",
+      "license": "GPL-3.0 (upstream LICENSE), upstream third-party notices retained",
+      "embedded_version": "1.7beta12 (identified from embedded version string)",
+      "provenance": "User-supplied ELF; source revision and upstream release identity not independently verified"
     }
   ],
   "source_archives": [
@@ -41,5 +41,6 @@
       "file": "sources/shadowmountplus-a8e4004.zip",
       "sha256": "4e80930bd5b27d8d22bd43fe3eeb426aab38cf518aab909fca1c5a14cb9a1a5b"
     }
-  ]
+  ],
+  "source_archives_note": "The source archives below are historical snapshots from the previously bundled kstuff-lite v1.11 and ShadowMountPlus 1.7beta10. They have not been verified as source for the new user-supplied ELFs."
 }

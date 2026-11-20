@@ -18,8 +18,8 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 |---|---|---|
 | Kraken Mount | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount) | Native FPKG/folder mounting, cache, registration and launch code used and adapted in TITAN CORE |
 | ampr-emu-ng 0.4.0 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/tree/v0.4.0) | Packed-game runtime; custom launch notice `PLAY NO LIMIT` (component UI label `chmod v0.1`) |
-| kstuff-lite 1.11 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite/releases/tag/v1.11) | Pinned resident payload, embedded unchanged |
-| ShadowMountPlus 1.7beta10 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus/releases/tag/1.7beta10) | Pinned image service, embedded unchanged |
+| kstuff-fpkg 1.13-dr-test6 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) (historical project reference) | User-supplied resident ELF; exact binary/source revision not verified |
+| ShadowMountPlus 1.7beta12 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | User-supplied resident ELF; exact binary/source revision not verified |
 | PS5 Dump Forge | [quer3q/ps5-dump-forge](https://github.com/quer3q/ps5-dump-forge) | Toolchain/workflow references and attributed sparse-format reader reference |
 | ps5-payload-sdk | [ps5-payload-dev/sdk](https://github.com/ps5-payload-dev/sdk) | Payload build toolchain and PS5 libraries |
 
@@ -27,7 +27,7 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 
 - Root license: GPL-3.0-or-later; see [LICENSE](LICENSE).
 - Existing dependency notices: [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
-- Pinned service versions, original source snapshots, component licenses and hashes: [vendor/unified](vendor/unified).
+- Current test service binary versions and hashes, plus historical source snapshots, component licenses and notices: [vendor/unified](vendor/unified). Exact matching source for the new test ELFs has not been verified.
 - Original AMPR 0.4.0 binary/source and custom display-only runtime source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [branding explanation](vendor/ampr-emu-ng/TITAN_BRANDING.md).
 - Sparse-format port attribution and exact source reference: [vendor/format-reference](vendor/format-reference).
 - TITAN CORE artwork provenance: [docs/branding/PROVENANCE.md](docs/branding/PROVENANCE.md).
