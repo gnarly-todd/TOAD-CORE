@@ -72,7 +72,7 @@ jobs:
           sha256sum TITAN-CORE.elf | tee SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: payload
+          name: toad-core
           path: |
             TITAN-CORE.elf
             SHA256SUMS
@@ -88,7 +88,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: payload
+          name: toad-core
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
