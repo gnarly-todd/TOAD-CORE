@@ -21,6 +21,8 @@ pub struct Settings {
     pub game_fakelib: FakelibMode,
     pub backports: bool,
     pub scan_interval_secs: u64,
+    /// Seconds a newly modified source must remain unchanged before it is processed.
+    pub stability_wait_secs: u64,
     pub low_space_gb: u64,
     pub notify: bool,
     /// Write /data/titan-core/titan-core.log (the payload's stdout always gets the lines).
@@ -38,6 +40,7 @@ impl Default for Settings {
             game_fakelib: FakelibMode::Emulators,
             backports: true,
             scan_interval_secs: 10,
+            stability_wait_secs: 10,
             low_space_gb: 20,
             notify: true,
             log: true,
@@ -55,6 +58,7 @@ const HELP: &[(&str, &str)] = &[
     ("game_fakelib", "game's own fakelib: emulators | full | off"),
     ("backports", "true = apply backports/<TID>* from the game's scan root, then the other roots, then /data/homebrew"),
     ("scan_interval_seconds", "scan loop period, 1..3600"),
+    ("stability_wait_seconds", "skip source files recently changed (still being copied), 0..3600, 0 disables"),
     ("low_space_gb", "warn when /data free space is below this"),
     ("notify", "true = system toasts"),
     ("log", "true = write /data/titan-core/titan-core.log (starts over past 1 MiB)"),
@@ -100,6 +104,10 @@ fn set(s: &mut Settings, key: &str, v: &str) -> Result<(), String> {
         "scan_interval_seconds" => match num(v)? {
             n @ 1..=3600 => s.scan_interval_secs = n,
             n => return Err(format!("{n} not in 1..3600")),
+        },
+        "stability_wait_seconds" => match num(v)? {
+            n @ 0..=3600 => s.stability_wait_secs = n,
+            n => return Err(format!("{n} not in 0..3600")),
         },
         "low_space_gb" => s.low_space_gb = num(v)?,
         "notify" => s.notify = flag(v)?,
@@ -265,6 +273,7 @@ fn render(s: &Settings) -> String {
             "game_fakelib" => out += &format!("{k} = {}\n", toml_quote(fakelib_str(s.game_fakelib))),
             "backports" => out += &format!("{k} = {}\n", s.backports),
             "scan_interval_seconds" => out += &format!("{k} = {}\n", s.scan_interval_secs),
+            "stability_wait_seconds" => out += &format!("{k} = {}\n", s.stability_wait_secs),
             "low_space_gb" => out += &format!("{k} = {}\n", s.low_space_gb),
             "notify" => out += &format!("{k} = {}\n", s.notify),
             "log" => out += &format!("{k} = {}\n", s.log),
@@ -312,6 +321,7 @@ pub fn to_json(s: &Settings) -> Value {
         "game_fakelib": fakelib_str(s.game_fakelib),
         "backports": s.backports,
         "scan_interval_seconds": s.scan_interval_secs,
+        "stability_wait_seconds": s.stability_wait_secs,
         "low_space_gb": s.low_space_gb,
         "notify": s.notify,
         "log": s.log,
