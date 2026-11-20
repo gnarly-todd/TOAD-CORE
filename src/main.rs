@@ -199,6 +199,16 @@ fn publish(state: &State, r: &scan::ScanResult) {
     for src in &r.duplicates {
         games.push(web::Game { src: src.clone(), status: "duplicate", error: None, cache_size: 0, cache_built: None });
     }
+    // An in-progress copy does not make an existing title disappear from the dashboard.
+    for (path, tid) in &r.unstable {
+        if let Some(previous) = old.iter().find(|g| &g.src.path == path
+            && tid.as_ref().is_none_or(|t| g.src.title_id == *t)
+            && g.status != "duplicate") {
+            if !games.iter().any(|g| g.src.title_id == previous.src.title_id && g.status != "duplicate") {
+                games.push(previous.clone());
+            }
+        }
+    }
 }
 /// Debug: copies the kernel log (/dev/klog: module load failures, process crashes) to
 /// /data/titan-core/klog.txt, read through the web UI's /file route.
@@ -398,7 +408,7 @@ fn main() {
         let mut roots = if s.scan_paths.is_empty() { storage::default_scan_roots() } else { s.scan_paths.clone() };
         roots.extend(relocation::scan_roots(std::path::Path::new(relocation::ROOT)));
         let mut install_roots=installer::roots();install_roots.extend(roots.iter().cloned());
-        let mut r = scan::scan(&install_roots, s.backports);
+        let mut r = scan::scan(&install_roots, s.backports, s.stability_wait_secs);
         #[cfg(feature="unified-stack")]
         if s.auto_import_installed && state.stack.native_ready(){
             let native=r.games.iter().map(|g|g.title_id.clone()).collect();
