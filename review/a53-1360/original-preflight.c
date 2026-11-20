@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 /*
  * TOAD-CORE original PS5 A53 preflight v2.
  * A basic userland diagnostic; no kernel memory operations, A53 commands,
