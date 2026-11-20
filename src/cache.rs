@@ -357,8 +357,8 @@ pub enum Fresh {
 
 /// The ampr files fakelib/ should carry: {name: [size, mtime]} of /data/titan-core/ampr's
 /// regular files (libkernel.sprx never copied), or null with inject_ampr off.
-fn ampr_state(s: &Settings) -> serde_json::Value {
-    if !s.inject_ampr {
+fn ampr_state(src: &Source, s: &Settings) -> serde_json::Value {
+    if !injects_ampr(src, s) {
         return serde_json::Value::Null;
     }
     let mut m = serde_json::Map::new();
@@ -370,6 +370,12 @@ fn ampr_state(s: &Settings) -> serde_json::Value {
         }
     }
     serde_json::Value::Object(m)
+}
+
+/// Every PKG requires ampr-emu-ng even if the optional folder-game setting is off.
+/// A PKG uses the runtime's kraken.image descriptor, which a game's original SPRX cannot read.
+fn injects_ampr(src: &Source, s: &Settings) -> bool {
+    s.inject_ampr || src.kind == Kind::Pkg
 }
 
 /// libkernel.sprx from the ampr dir would replace the system one for every game: never copied.
@@ -406,7 +412,7 @@ pub fn check(src: &Source, s: &Settings) -> Fresh {
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
-    if had != ampr_state(s) {
+    if had != ampr_state(src, s) {
         return Fresh::Fakelib(format!("{AMPR_DIR} or inject_ampr changed"));
     }
     Fresh::Fresh
@@ -470,19 +476,23 @@ fn compose_fakelib(src: &Source, s: &Settings, pkg: Option<(&Io, &Pkg)>) -> Resu
             let lower = e.path.to_ascii_lowercase();
             let Some(name) = lower.strip_prefix(game_lib) else { continue };
             let name = &e.path[e.path.len() - name.len()..];
-            if !name.contains('/') && keep_fakelib(name, s, all_game_libs(two)) {
+            // A normal game's libSceSaveData.native.sprx replaces the system save module
+            // and can make saves disappear. Keep intentional fakelib2/backport overrides.
+            if !name.contains('/') && keep_fakelib(name, s, all_game_libs(two))
+                && (two || !name.eq_ignore_ascii_case("libSceSaveData.native.sprx")) {
                 extract(p, io, &e, &fakelib.join(name), &mut buf)?;
             }
         }
     } else if let Some(lib) = lib_dir(src) {
         let two = lib.file_name().is_some_and(|n| n == "fakelib2");
-        copy_flat(&lib, &fakelib, |n| keep_fakelib(n, s, all_game_libs(two)))?;
+        copy_flat(&lib, &fakelib, |n| keep_fakelib(n, s, all_game_libs(two))
+            && (two || !n.eq_ignore_ascii_case("libSceSaveData.native.sprx")))?;
     }
     // Our ampr-emu-ng on top of whatever the game or backport ships (its own libSceAmpr.sprx included).
-    if s.inject_ampr {
+    if injects_ampr(src, s) {
         copy_flat(Path::new(AMPR_DIR), &fakelib, ampr_copied)?;
     }
-    fs::write(dir.join(AMPR_STATE), ampr_state(s).to_string())
+    fs::write(dir.join(AMPR_STATE), ampr_state(src, s).to_string())
 }
 
 /// Recomposes only fakelib/ (Fresh::Fakelib): no extraction besides a pkg's own fakelib, no
