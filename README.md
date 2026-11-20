@@ -13,7 +13,7 @@ Internal installed PKGs stay in their system path. External installation keeps y
 
 This fork bundles `kstuff-fpkg-1.13-dr-test6.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
-Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `toad-core` artifact. The generated `TITAN-CORE.elf` is the fork's build output. No PS5 console acceptance test has been performed for the supplied binaries.
+Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `toad-core` artifact. The generated `toad-core.elf` is the fork's downloadable ELF. It explicitly names its main process `toad-core.elf` at startup, independent of upload filename, so the Active Processes list can identify it. No PS5 console acceptance test has been performed for the supplied binaries.
 
 Close games and reboot the console before switching resident payload versions. Then use your existing jailbroken console/elfldr workflow to load the updated ELF and access `http://<PS5-IP>:8097`. The source tree does not include a jailbreak exploit.
 
@@ -98,9 +98,12 @@ GitHub's language percentages measure classified source bytes; they do not measu
 
 The source uses Rust 1.99.0 and PS5 payload SDK 0.43 in the Docker build. Keep compiler parallelism at two jobs.
 
-**Production/research isolation:** The A53 research tools under `review/a53-1360/` are separate and are not linked into `TITAN-CORE.elf`. The production build does not run those diagnostic scripts or embed the diagnostic ELFs. It continues using the pinned kstuff-fpkg, ShadowMountPlus, AMPR and conditional emulator components. A53 code execution and native A53 FPKG handling on firmware 13.60 have not been demonstrated by these diagnostics.
+**Active process name:** `toad-core.elf`. The PS5 startup shim uses `thr_set_name` on the main thread before Rust starts, the same mechanism used by PS5 Payload Manager. This is independent of the GitHub artifact name or Cargo crate name. The internal saved payload path remains `/data/titan-core/titan-core.elf` for compatibility, but loading that stage also sets the visible name. Fully stop an existing TITAN/TOAD process or reboot before injecting the updated binary, or both processes could be listed.
 
-The downloadable GitHub Actions artifact is named `toad-core` and contains `TITAN-CORE.elf` and `SHA256SUMS`. If GitHub Actions does not start a run, build locally with the command below; editing `build.yml` alone does not create a new ELF.
+
+**Production/research isolation:** The A53 research tools under `review/a53-1360/` are separate and are not linked into `toad-core.elf`. The production build does not run those diagnostic scripts or embed the diagnostic ELFs. It continues using the pinned kstuff-fpkg, ShadowMountPlus, AMPR and conditional emulator components. A53 code execution and native A53 FPKG handling on firmware 13.60 have not been demonstrated by these diagnostics.
+
+The downloadable GitHub Actions artifact is named `toad-core` and contains `toad-core.elf` and `SHA256SUMS`. If GitHub Actions does not start a run, build locally with the command below; editing `build.yml` alone does not create a new ELF.
 
 
 ```sh
