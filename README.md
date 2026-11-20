@@ -4,7 +4,7 @@
 
 ## Version 1.0
 
-Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The bundled game runtime displays **PLAY NO LIMIT**.
+Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled runtime is unmodified **ampr-emu-ng 0.4.1**; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
 
 **Known limit:** full external package size in PS5 System storage is not established. The v1.0 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
@@ -110,7 +110,7 @@ The build verifies bundled runtime/service hashes and builds both ELF stages. Th
 
 ## License and credits
 
-GPL-3.0-or-later. TITAN CORE is a derivative/aggregate project, with original authorship and upstream notices retained. The component label `chmod v0.1` and `PLAY NO LIMIT` launch notice apply to a custom AMPR 0.4.0 build; it does not claim a new upstream runtime or authorship of that engine. Bundled component source snapshots, modified runtime source and notices are included under `vendor/`.
+GPL-3.0-or-later. TITAN CORE is a derivative/aggregate project, with original authorship and upstream notices retained. The bundled runtime is now the upstream ampr-emu-ng v0.4.1 binary (the previous custom AMPR 0.4.0 PLAY NO LIMIT branding remains historical only). Bundled component source snapshots, modified runtime source and notices are included under `vendor/`.
 
 See [CREDITS.md](CREDITS.md), [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
 
@@ -126,7 +126,7 @@ The Installer Internal choice now commits the new package to `/user/app/<TITLE_I
 
 ## Launch notice and game-folder help — 0.6.2-beta.1
 
-The bundled runtime launch notice now reads **PLAY NO LIMIT**. Settings uses **Game folders / Dossiers des jeux** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
+The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TOAD-CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders / Dossiers des jeux** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
 
 ## Preserve your PKG archive — 0.6.3-beta.1
 
