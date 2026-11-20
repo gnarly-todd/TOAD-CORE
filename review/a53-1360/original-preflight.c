@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 /*
- * TOAD-CORE original PS5 A53 preflight v2.
+ * TITAN CORE original PS5 A53 preflight v2.
  * A basic userland diagnostic; no kernel memory operations, A53 commands,
  * MP4 ioctls, device writes, firmware patching, or native FPKG enablement.
  * Build with ps5-payload-dev/sdk v0.43 through prospero-clang.
@@ -34,13 +34,13 @@ static void notify(const char *message) {
 }
 
 static const char *const log_paths[] = {
-    "/data/toad-a53-original-preflight.txt",
-    "/user/data/toad-a53-original-preflight.txt",
-    "/system_tmp/toad-a53-original-preflight.txt"
+    "/data/titan-a53-original-preflight.txt",
+    "/user/data/titan-a53-original-preflight.txt",
+    "/system_tmp/titan-a53-original-preflight.txt"
 };
 
 int main(void) {
-    notify("TOAD A53 preflight v2: started");
+    notify("TITAN A53 preflight v2: started");
     FILE *log = NULL;
     const char *location = NULL;
     int last_errno = 0;
@@ -53,12 +53,12 @@ int main(void) {
     if (log == NULL) {
         char error[140];
         (void)snprintf(error, sizeof(error),
-            "TOAD A53 preflight v2: unable to create log (errno %d)", last_errno);
+            "TITAN A53 preflight v2: unable to create log (errno %d)", last_errno);
         notify(error);
         return 2;
     }
     /* Set an early marker so a crash later can be distinguished from startup. */
-    (void)fprintf(log, "TOAD-CORE original PS5 preflight v2 started\n");
+    (void)fprintf(log, "TITAN CORE original PS5 preflight v2 started\n");
     (void)fprintf(log, "log_path=%s\n", location);
     (void)fprintf(log, "mode=read_only_userland\n");
     (void)fprintf(log, "a53_execution_verified=false\n");
@@ -91,7 +91,7 @@ int main(void) {
 
     char completed[250];
     (void)snprintf(completed, sizeof(completed),
-        "TOAD A53 preflight v2: complete; log at %s", location);
+        "TITAN A53 preflight v2: complete; log at %s", location);
     notify(completed);
     return 0;
 }

@@ -1,6 +1,6 @@
 # Firmware 13.60 A53 research track (read-only)
 
-This is **not an A53 exploit**, an A53 patcher, or native FPKG support. It is a fail-closed offline validator for the 13.60 SDBGP read-result format and known stock instruction sites. It never executes console code or writes A53 memory. TOAD-CORE's PKG route remains AMPR; no native A53 feature flag is available.
+This is **not an A53 exploit**, an A53 patcher, or native FPKG support. It is a fail-closed offline validator for the 13.60 SDBGP read-result format and known stock instruction sites. It never executes console code or writes A53 memory. TITAN CORE's PKG route remains AMPR; no native A53 feature flag is available.
 
 ## Evidence base
 
