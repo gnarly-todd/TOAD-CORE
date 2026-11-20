@@ -42,7 +42,7 @@ unsafe extern "C" { fn kernel_get_fw_version() -> u32; }
 #[cfg(test)]
 unsafe fn kernel_get_fw_version() -> u32 { panic!("Hardware bootstrap is never run by host tests") }
 
-/// Read-only KEKCALL_CHECK probe originally based on ShadowMountPlus 1.7beta10; newer binary requires hardware validation.
+/// Read-only KEKCALL_CHECK readiness probe; verify compatibility with the bundled payload on hardware.
 #[cfg(all(target_arch = "x86_64", not(test)))]
 fn kstuff_ready() -> bool {
     let mut result: u64 = 0xffff_ffff_0000_0027;

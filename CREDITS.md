@@ -27,7 +27,7 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 
 - Root license: GPL-3.0-or-later; see [LICENSE](LICENSE).
 - Existing dependency notices: [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
-- Current test service binary versions and hashes, plus historical source snapshots, component licenses and notices: [vendor/unified](vendor/unified). Exact matching source for the new test ELFs has not been verified.
+- Current test service binary versions and hashes, retained third-party dependency source snapshots, component licenses and notices: [vendor/unified](vendor/unified). Exact matching source for the new test ELFs has not been verified.
 - Original AMPR 0.4.0 binary/source and custom display-only runtime source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [branding explanation](vendor/ampr-emu-ng/TITAN_BRANDING.md).
 - Sparse-format port attribution and exact source reference: [vendor/format-reference](vendor/format-reference).
 - TITAN CORE artwork provenance: [docs/branding/PROVENANCE.md](docs/branding/PROVENANCE.md).
@@ -37,3 +37,5 @@ The current custom AMPR source changes only the launch-notice text to PLAY NO LI
 ## Reader and decoder source references
 
 The renamed `crates/titan-core-pkg/src/layout.rs` is the existing layout reader previously named `kraken.rs`. It ports the upstream `VF/kraken_image.rs:728-1036` describe logic and `FP/mount.rs:35-283` block/layout logic. Its sparse handling references `vendor/ps5upload-fpkg/src/kraken_image.rs` (GPL-3.0-or-later). The decoder ports the Kraken block decoder vendored by ps5-dump-forge: `kraken.rs` (bit reader, arrays and LZ), `kraken/huff.rs` (Huffman helpers) and `kraken_image.rs::decode_described`. Neutral local names do not change the compression format or its authorship. AMPR codec-2 index encoding follows the upstream `ng/KRAKEN.md` contract.
+
+The superseded service binaries and their old release/source metadata were removed from the current TOAD-CORE tree. Exact corresponding source for the user's replacement ELF builds remains unverified, and the upstream project authors retain their respective credits and licenses.

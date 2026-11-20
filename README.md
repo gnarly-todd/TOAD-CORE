@@ -10,28 +10,13 @@ Internal installed PKGs stay in their system path. External installation keeps y
 
 يبقى التثبيت الداخلي في مساره الأصلي. التثبيت الخارجي يحتفظ بملف الأرشيف ويعرض حجم اللعبة والذاكرة المؤقتة بشكل منفصل. ملفات PKG الأصلية على USB لا تعمل mount تلقائياً. ظهور الحجم الكامل للخارجية داخل تخزين نظام PS5 ما زال غير محقق.
 
-## ⬇️ تحميل TITAN CORE / Download TITAN CORE
+## Download the updated TOAD-CORE build
 
-### [⬇️ تحميل ملف ELF مباشرة — Download ELF directly](https://github.com/devchmod/TITAN-CORE/releases/download/v1.0.0/TITAN-CORE-v1.0.elf)
+This fork bundles `kstuff-fpkg-1.13-dr-test6.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
-**النسخة / Version: 1.0** · **الملف / File: `TITAN-CORE-v1.0.elf`**
+Open [TOAD-CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `payload` artifact. The generated `TITAN-CORE.elf` is the fork's build output. No PS5 console acceptance test has been performed for the supplied binaries.
 
-**بالعربية**
-
-1. اضغط على رابط **تحميل ملف ELF مباشرة** أعلاه لتحميل ملف التشغيل.
-2. إذا فتحت [صفحة الإصدار](https://github.com/devchmod/TITAN-CORE/releases/tag/v1.0.0)، افتح **Assets** واضغط على **`TITAN-CORE-v1.0.elf`**.
-3. الملف المطلوب للتشغيل هو **`.elf`**. ملفات **Source code (zip / tar.gz)** هي للمطورين وليست ملف التشغيل. لا تحتاج إلى فك ضغط ملف ELF.
-4. أرسل ملف ELF إلى PS5 باستعمال أداة تحميل الـpayload/elfldr التي تستخدمها، ثم افتح `http://<PS5-IP>:8097` مع تعويض `<PS5-IP>` بعنوان جهازك.
-
-**English**
-
-1. Click **Download ELF directly** above to download the runnable payload.
-2. If you open the [release page](https://github.com/devchmod/TITAN-CORE/releases/tag/v1.0.0), expand **Assets** and select **`TITAN-CORE-v1.0.elf`**.
-3. You need the **`.elf`** file to run TITAN CORE. **Source code (zip / tar.gz)** downloads are for developers. The ELF does not need extraction.
-4. Send the ELF to your PS5 using your existing payload/elfldr loader, then open `http://<PS5-IP>:8097`, replacing `<PS5-IP>` with your console's address.
-
-[جميع الإصدارات / All releases](https://github.com/devchmod/TITAN-CORE/releases) · [بصمات التحقق / SHA256SUMS](https://github.com/devchmod/TITAN-CORE/releases/download/v1.0.0/SHA256SUMS)
-
+Close games and reboot the console before switching resident payload versions. Then use your existing jailbroken console/elfldr workflow to load the updated ELF and access `http://<PS5-IP>:8097`. The source tree does not include a jailbreak exploit.
 
 ## ⚙️ قبل التشغيل / Before loading TITAN CORE
 

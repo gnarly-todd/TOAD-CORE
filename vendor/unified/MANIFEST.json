@@ -30,17 +30,9 @@
       "sha256": "0a7710a2d844b2f52c307a09b1bb71d55c11d5d740e43d4ea2900c2028289477"
     },
     {
-      "file": "sources/kstuff-lite-85fb88a.zip",
-      "sha256": "44c0d91c43ae1acfd30160adf71a8bc38bd7885eeff694662cfd3c7ca25bc665"
-    },
-    {
       "file": "sources/libtomcrypt-b96e96c.zip",
       "sha256": "bb9245a39f00a1099fc0fdb990182d007df1481889c5ea47caab6698583abb27"
-    },
-    {
-      "file": "sources/shadowmountplus-a8e4004.zip",
-      "sha256": "4e80930bd5b27d8d22bd43fe3eeb426aab38cf518aab909fca1c5a14cb9a1a5b"
     }
   ],
-  "source_archives_note": "The source archives below are historical snapshots from the previously bundled kstuff-lite v1.11 and ShadowMountPlus 1.7beta10. They have not been verified as source for the new user-supplied ELFs."
+  "source_archives_note": "Retained third-party dependency archives and license notices are historical materials and are not confirmed matching-source archives for either new test ELF."
 }

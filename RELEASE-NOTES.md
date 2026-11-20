@@ -1,3 +1,9 @@
+# TOAD-CORE fork payload integration (2026-11-20)
+
+This fork's source embeds user-supplied kstuff 1.13 FPKG DR Test 6 and ShadowMountPlus 1.7beta12. Download a newly built artifact through the fork's GitHub Actions workflow; the upstream v1.0 download below is a **historical upstream release**, not the updated fork. New console hardware compatibility remains unverified.
+
+---
+
 # TITAN CORE v1.0
 
 ## ⬇️ تحميل ELF / Download ELF
@@ -15,7 +21,7 @@ English: download **TITAN-CORE-v1.0.elf** above or expand **Assets** below. Clos
 - Original installer PKGs stay archived, even on the same external disk. Copies are byte-verified; destination space checks include the complete package.
 - Raw external PKGs remain Installer-only until installed; plugging a disk in does not auto-mount archive originals.
 - Valid external installations show **External installed**, the actual drive/package size and internal cache separately.
-- Bundled kstuff-lite1.11 and ShadowMountPlus1.7beta10, PLAY NO LIMIT runtime notice, multilingual/RTL interface, settings, diagnostics/klog and update checks.
+- The fork now bundles kstuff 1.13 FPKG DR Test 6 and ShadowMountPlus 1.7beta12; original v1.0 included the PLAY NO LIMIT runtime notice, multilingual/RTL interface, settings, diagnostics/klog and update checks.
 
 الداخلية تبقى في مسار النظام. الخارجية تُثبّت داخل مجلد TITAN مع الاحتفاظ بملف الأرشيف الأصلي. ملفات الأرشيف لا تعمل mount تلقائياً. تعرض الواجهة حالة التثبيت الخارجي والحجم والقرص والذاكرة المؤقتة بشكل منفصل.
 
