@@ -1,0 +1,35 @@
+name: import pinned Kraken 0.3.1 and AMPR 0.5.0
+on:
+  push:
+    paths:
+      - .github/workflows/import-pinned-upstream.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Import exact upstream release commits and AMPR runtime
+        run: bash review/import-pinned-upstream.sh
+      - name: Commit verified vendor source archives and AMPR release library
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/kraken-mount/PROVENANCE.md \
+            vendor/kraken-mount/upstream-v0.3.1.tar.gz \
+            vendor/ampr-emu-ng/upstream-v0.5.0.tar.gz \
+            vendor/ampr-emu-ng/UPSTREAM_V050.md \
+            vendor/ampr-emu-ng/libSceAmpr.sprx \
+            vendor/ampr-emu-ng/VERSION \
+            vendor/ampr-emu-ng/SHA256SUMS
+          if git diff --cached --quiet; then
+            echo "No upstream changes to commit."
+          else
+            git commit -m "Import pinned Kraken v0.3.1 source and AMPR v0.5.0 runtime"
+            git push origin HEAD:main
+          fi
