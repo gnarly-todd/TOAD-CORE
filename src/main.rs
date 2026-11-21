@@ -79,8 +79,11 @@ fn backport_of(src: &Source) -> Option<&std::path::Path> {
     }
 }
 
-/// Builds when stale or forced, then registers. Ok(true) when the title was (re)registered.
-fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, forced: bool) -> std::io::Result<bool> {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Registration { Existing, New, Staged }
+
+/// Builds when stale or forced, then registers (or stages a FW12+ batch title).
+fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, forced: bool) -> std::io::Result<Registration> {
     let tid = &src.title_id;
     if library::installed_package_path(&src.path){backup::installed(tid, storage::drives().into_iter().find(|d| d.mount == "/data").map_or(0, |d| d.free))?;}
     if let (false, Fresh::Fakelib(why)) = (forced, fresh) {
@@ -94,7 +97,7 @@ fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, 
         // ponytail: registered by an earlier run; only the nullfs is redone (gone after a
         // reboot; a no-op when mounted): no sce_sys copy, no install call.
         register::mount(tid, &app0, backport_of(src))?;
-        return Ok(false);
+        return Ok(Registration::Existing);
     }
     if stale {
         match fresh {
@@ -108,8 +111,8 @@ fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, 
         check_space(state, s);
         r?;
     }
-    register::register(tid, &app0, &cache::sce_sys(src), backport_of(src))?;
-    Ok(true)
+    let immediate = register::register_staged(tid, &app0, &cache::sce_sys(src), backport_of(src))?;
+    Ok(if immediate { Registration::New } else { Registration::Staged })
 }
 
 /// System-path PKGs use the same resident-service ownership gate as classic installs.
@@ -124,7 +127,7 @@ fn coordinate_source(state:&State,src:&Source)->Result<(),String>{
 
 /// One game of the scan: check, build, register, status. A failed game is retried only when
 /// its inputs_key changes or a rebuild is forced.
-fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<String>, failed: &mut HashMap<PathBuf, String>) {
+fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<String>, failed: &mut HashMap<PathBuf, String>, staged: &mut Vec<Source>) {
     let tid = &src.title_id;
     #[cfg(feature="unified-stack")]
     if !state.stack.native_owns(tid){
@@ -155,7 +158,12 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
     };
     let (size, built) = (cache::size(tid), cache::built_at(tid));
     match r {
-        Ok(new) => {
+        Ok(Registration::Staged) => {
+            staged.push(src.clone());
+            state.update(&src.path, |g| { g.status = "checking"; g.error = None; });
+            log!("{tid}: staged; awaiting one batch registration after the scan");
+        }
+        Ok(registration) => {
             #[cfg(feature="unified-stack")]
             if let Err(error)=coordinate_source(state,src){
                 state.titles.lock().unwrap().remove(tid);
@@ -168,7 +176,7 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
             state.update(&src.path, |g| {
                 (g.status, g.error, g.cache_size, g.cache_built) = ("ready", None, size, built);
             });
-            if new {
+            if registration == Registration::New {
                 toast(s, &format!("{} registered", src.title_name));
             }
         }
@@ -463,12 +471,61 @@ fn main() {
         registered.retain(|t| r.games.iter().any(|g| &g.title_id == t));
         // Built caches are overlaid at launch from the start, not only once the scan reaches them.
         check_space(&state, &s);
+        let mut staged = Vec::new();
         for src in &r.games {
             if state.paused() {
                 log!("a game started; scan paused until it exits");
                 break;
             }
-            process(&state, &s, src, &mut registered, &mut failed);
+            process(&state, &s, src, &mut registered, &mut failed, &mut staged);
+        }
+        // Batch only when no game is running. If interrupted, staged titles
+        // remain on disk and are naturally retried on the next scan pass.
+        if !staged.is_empty() && !state.paused() {
+            let titles: Vec<String> = staged.iter().map(|src| src.title_id.clone()).collect();
+            let result = register::install_all(&titles);
+            let mut completed = 0usize;
+            for src in &staged {
+                if state.paused() { break; }
+                let tid = &src.title_id;
+                let finish = match &result {
+                    Ok(()) => {
+                        #[cfg(feature="unified-stack")]
+                        {
+                            coordinate_source(&state, src).map_err(std::io::Error::other)
+                        }
+                        #[cfg(not(feature="unified-stack"))]
+                        { Ok(()) }
+                    }
+                    Err(e) => Err(std::io::Error::other(e.to_string())),
+                };
+                match finish {
+                    Ok(()) => {
+                        failed.remove(&src.path);
+                        registered.insert(tid.clone());
+                        state.titles.lock().unwrap().insert(tid.clone());
+                        state.update(&src.path, |g| {
+                            (g.status, g.error, g.cache_size, g.cache_built) =
+                                ("ready", None, cache::size(tid), cache::built_at(tid));
+                        });
+                        completed += 1;
+                    }
+                    Err(e) => {
+                        state.titles.lock().unwrap().remove(tid);
+                        let message = format!("{tid}: batch registration: {e}");
+                        log!("{message}");
+                        failed.insert(src.path.clone(), inputs_key(src, &s));
+                        state.update(&src.path, |g| {
+                            (g.status, g.error) = ("error", Some(message.clone()));
+                        });
+                    }
+                }
+            }
+            if result.is_ok() && completed > 0 {
+                toast(&s, &format!("{completed} games registered"));
+            } else if let Err(e) = result {
+                toast(&s, &format!("Batch registration failed for {} games: {e}", titles.len()));
+            }
         }
         *state.cache_total.lock().unwrap() = cache::total_size();
         check_space(&state, &s);

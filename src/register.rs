@@ -325,37 +325,55 @@ pub fn uninstall(tid: &str) -> io::Result<()> {
     if rc == 0 { Ok(()) } else { Err(err(format!("sceAppInstUtilAppUnInstall({tid}): {rc:#x}"))) }
 }
 
-/// sceAppInstUtilAppInstallTitleDir(tid, "/user/app/", NULL); 0 and 0x80990002 are success.
-fn install_title_dir(title_id: &str) -> io::Result<()> {
+/// The per-title install call is absent on some newer firmware (including FW12+).
+/// Ok(false) stages a title for one install_all at the end of a scan pass.
+fn install_title_dir(title_id: &str) -> io::Result<bool> {
     let f = match INSTALL_FN.get_or_init(resolve_install) {
         Ok(f) => *f,
         Err(e) => {
-            // dump-forge's last resort: registers every folder under /user/app, ours included.
-            extern "C" {
-                fn sceAppInstUtilAppInstallAll(reserved: *mut c_void) -> i32;
-            }
-            let rc = unsafe { sceAppInstUtilAppInstallAll(ptr::null_mut()) } as u32;
-            log!("{title_id}: {e}; sceAppInstUtilAppInstallAll: {rc:#x}");
-            return if rc == 0 { Ok(()) } else { Err(err(format!("sceAppInstUtilAppInstallAll: {rc:#x}"))) };
+            log!("{title_id}: per-title install unavailable ({e}); staged for batch");
+            return Ok(false);
         }
     };
     let tid = CString::new(title_id).map_err(|_| err(format!("NUL in {title_id}")))?;
     let base = CString::new(format!("{APP_BASE}/")).expect("no NUL");
     let rc = unsafe { f(tid.as_ptr(), base.as_ptr(), ptr::null_mut()) } as u32;
     if rc == 0 || rc == ALREADY_INSTALLED {
-        return Ok(());
+        return Ok(true);
     }
     Err(err(format!("sceAppInstUtilAppInstallTitleDir({title_id}): {rc:#x}")))
 }
 
-/// SMP mount_and_install: stage `sce_sys` into /user/app/<TID> (sce_sys + icon0.png) and
-/// /user/appmeta/<TID> (param.*, *.png incl. pic0/pic1, *.dds, *.at9), trophy metadata, nullfs
-/// `app0` at /system_ex/app/<TID>, the optional backport unionfs on top, then register.
+/// Kraken Mount 0.3.1: register all titles staged during one scan pass
+/// using one sceAppInstUtilAppInstallAll call. Do not call while a game runs.
+pub fn install_all(title_ids: &[String]) -> io::Result<()> {
+    if title_ids.is_empty() {
+        return Ok(());
+    }
+    extern "C" {
+        fn sceAppInstUtilAppInstallAll(reserved: *mut c_void) -> i32;
+    }
+    let t = std::time::Instant::now();
+    let rc = unsafe { sceAppInstUtilAppInstallAll(ptr::null_mut()) } as u32;
+    log!("{}: sceAppInstUtilAppInstallAll: {rc:#x} ({} ms)",
+        title_ids.join(", "), t.elapsed().as_millis());
+    if rc == 0 { Ok(()) } else { Err(err(format!("sceAppInstUtilAppInstallAll: {rc:#x}"))) }
+}
+
+/// Preserve the original immediate-registration interface for one-off restore operations.
 pub fn register(title_id: &str, app0: &Path, sce_sys: &Path, backport: Option<&Path>) -> io::Result<()> {
+    if !register_staged(title_id, app0, sce_sys, backport)? {
+        install_all(&[title_id.to_string()])?;
+    }
+    Ok(())
+}
+
+/// Ok(false): staged and mounted, pending a single end-of-pass registration.
+pub fn register_staged(title_id: &str, app0: &Path, sce_sys: &Path, backport: Option<&Path>) -> io::Result<bool> {
     ctx(register_inner(title_id, app0, sce_sys, backport), || format!("register {title_id} ({})", app0.display()))
 }
 
-fn register_inner(title_id: &str, app0: &Path, sce_sys: &Path, backport: Option<&Path>) -> io::Result<()> {
+fn register_inner(title_id: &str, app0: &Path, sce_sys: &Path, backport: Option<&Path>) -> io::Result<bool> {
     let app_dir = Path::new(APP_BASE).join(title_id);
     let user_sce_sys = app_dir.join("sce_sys");
     ctx(copy_dir(sce_sys, &user_sce_sys), || {
