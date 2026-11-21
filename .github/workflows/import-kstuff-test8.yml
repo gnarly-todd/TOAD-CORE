@@ -1,0 +1,30 @@
+name: import exact kstuff test8 rest
+on:
+  push:
+    paths:
+      - .github/workflows/import-kstuff-test8.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Fetch public archive and verify exact uploaded kstuff SHA-256
+        run: python3 review/import-exact-kstuff-test8.py
+      - name: Record verified kstuff replacement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A vendor/unified/ src/stack.rs review/verify-unified-payloads.py \
+            README.md CREDITS.md
+          if git diff --cached --quiet; then
+            echo "Nothing changed"
+          else
+            git commit -m "Upgrade bundled kstuff to verified 1.13-fpkg-dr-test8-rest ELF"
+            git push origin HEAD:main
+          fi
