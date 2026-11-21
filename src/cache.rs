@@ -516,6 +516,7 @@ fn emu_state(src: &Source, s: &Settings) -> serde_json::Value {
     serde_json::json!({
         "dlc_emu": DLC_EMU_VERSION.trim(),
         "pgo_stub": PGO_STUB_VERSION.trim(),
+        "playgo_off": s.playgo_off.iter().any(|t| t == &src.title_id),
         "dlc_ini": dlc_ini_on_disk(src),
         "eboot": eboot,
     })
@@ -659,7 +660,7 @@ fn loose(path: String, size: u64) -> IndexFile {
 /// fakelib/ from scratch: the backport's lib dir (all files) if any, else the game's own (pkg:
 /// extracted from `pkg`; folder: copied), filtered by game_fakelib; then the ampr files on top
 /// (inject_ampr). All 0777. Writes AMPR_STATE.
-fn add_emus(tid: &str, fakelib: &Path, dlc: bool, mut playgo: impl FnMut() -> bool) -> Result<()> {
+fn add_emus(tid: &str, fakelib: &Path, dlc: bool, playgo_disabled: bool, mut playgo: impl FnMut() -> bool) -> Result<()> {
     // Per entry: None = missing, Some((path, known old, the bundled file itself)).
     let found: Vec<_> = EMUS.iter().map(|&(name, data, ..)| find_ci(fakelib, name).map(|p| {
         let old = old_emu_file(&p, name);
@@ -672,6 +673,11 @@ fn add_emus(tid: &str, fakelib: &Path, dlc: bool, mut playgo: impl FnMut() -> bo
         log!("{tid}: fakelib: kept the game's dlc_emu files (not a known release)");
     }
     for (&(name, data, from, is_dlc), f) in EMUS.iter().zip(found) {
+        // A disabled PlayGo stub is not added or upgraded. Existing game-owned
+        // files are preserved because the composition still copies them first.
+        if !is_dlc && playgo_disabled {
+            continue;
+        }
         if is_dlc && dlc_kept {
             continue;
         }
@@ -734,7 +740,8 @@ fn compose_fakelib(src: &Source, s: &Settings, pkg: Option<(&Io, &Pkg)>) -> Resu
     if s.add_emulators {
         let dlc = dlc_ini_on_disk(src)
             || pkg.is_some_and(|(_, p)| p.files().any(|e| !e.is_dir && e.path == DLC_INI));
-        add_emus(&src.title_id, &fakelib, dlc, || wants_playgo_memo(src, &had, &mut state))?;
+        let playgo_disabled = s.playgo_off.iter().any(|t| t == &src.title_id);
+        add_emus(&src.title_id, &fakelib, dlc, playgo_disabled, || wants_playgo_memo(src, &had, &mut state))?;
     }
     if injects_ampr(src, s) {
         // Preserve a game's own newer ampr-emu-ng when available.

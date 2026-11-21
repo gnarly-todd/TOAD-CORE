@@ -17,6 +17,8 @@ pub struct Settings {
     pub inject_ampr: bool,
     /// Enable verified upstream DLC/PlayGo emulator injection where requested by a game.
     pub add_emulators: bool,
+    /// Title IDs which do not receive the bundled PlayGo stub (game-owned copies are kept).
+    pub playgo_off: Vec<String>,
     pub auto_import_installed: bool,
     pub game_fakelib: FakelibMode,
     pub backports: bool,
@@ -36,6 +38,7 @@ impl Default for Settings {
             scan_paths: Vec::new(),
             inject_ampr: true,
             add_emulators: true,
+            playgo_off: Vec::new(),
             auto_import_installed: true,
             game_fakelib: FakelibMode::Emulators,
             backports: true,
@@ -55,6 +58,7 @@ const HELP: &[(&str, &str)] = &[
     ("auto_import_installed", "prepare supported installed PS5 PKGs in their original system location for native launch"),
     ("inject_ampr", "true = copy /data/titan-core/ampr/* on top of folder-game fakelib; PKG games always require AMPR"),
     ("add_emulators", "true = add upstream DLC and PlayGo emulators when needed without replacing newer game copies"),
+    ("playgo_off", "list of title IDs which do not get the bundled PlayGo stub; game-owned copies stay unchanged"),
     ("game_fakelib", "game's own fakelib: emulators | full | off"),
     ("backports", "true = apply backports/<TID>* from the game's scan root, then the other roots, then /data/homebrew"),
     ("scan_interval_seconds", "scan loop period, 1..3600"),
@@ -91,6 +95,12 @@ fn set(s: &mut Settings, key: &str, v: &str) -> Result<(), String> {
         "scanpath" => return Err(format!("expected an absolute path, got {v:?}")),
         "inject_ampr" => s.inject_ampr = flag(v)?,
         "add_emulators" => s.add_emulators = flag(v)?,
+        "playgo_off" if crate::scan::valid_tid(v) => {
+            if !s.playgo_off.iter().any(|t| t == v) {
+                s.playgo_off.push(v.to_string());
+            }
+        }
+        "playgo_off" => return Err(format!("expected a title ID such as PPSA01556, got {v:?}")),
         "auto_import_installed" => s.auto_import_installed = flag(v)?,
         "game_fakelib" => {
             s.game_fakelib = match v {
@@ -243,11 +253,21 @@ fn parse(text: &str) -> Settings {
         }
         let r = toml_value(&v).and_then(|vals| {
             if k == "scanpath" {
-                s.scan_paths.clear(); // the array replaces the defaults (and an earlier scanpath line)
+                s.scan_paths.clear();
+            } else if k == "playgo_off" {
+                s.playgo_off.clear();
             } else if vals.len() != 1 {
                 return Err("expected one value, not an array".into());
+            } else {
+                return set(&mut s, k, &vals[0]);
             }
-            vals.iter().try_for_each(|x| set(&mut s, k, x))
+            // Kraken 0.3.1: one bad array element does not discard the rest.
+            for x in &vals {
+                if let (Err(e), false) = (set(&mut s, k, x), quiet) {
+                    log!("config {CONFIG_PATH}:{}: {k}: {e}; skipped", n + 1);
+                }
+            }
+            Ok(())
         });
         if let (Err(e), false) = (r, quiet) {
             log!("config {CONFIG_PATH}:{}: {k}: {e}; using the default", n + 1);
@@ -270,6 +290,10 @@ fn render(s: &Settings) -> String {
             "auto_import_installed" => out += &format!("{k} = {}\n", s.auto_import_installed),
             "inject_ampr" => out += &format!("{k} = {}\n", s.inject_ampr),
             "add_emulators" => out += &format!("{k} = {}\n", s.add_emulators),
+            "playgo_off" => {
+                let items: Vec<String> = s.playgo_off.iter().map(|t| toml_quote(t)).collect();
+                out += &format!("playgo_off = [{}]\n", items.join(", "));
+            }
             "game_fakelib" => out += &format!("{k} = {}\n", toml_quote(fakelib_str(s.game_fakelib))),
             "backports" => out += &format!("{k} = {}\n", s.backports),
             "scan_interval_seconds" => out += &format!("{k} = {}\n", s.scan_interval_secs),
@@ -317,6 +341,7 @@ pub fn to_json(s: &Settings) -> Value {
         "scanpath": s.scan_paths,
         "inject_ampr": s.inject_ampr,
         "add_emulators": s.add_emulators,
+        "playgo_off": s.playgo_off,
         "auto_import_installed": s.auto_import_installed,
         "game_fakelib": fakelib_str(s.game_fakelib),
         "backports": s.backports,
@@ -335,8 +360,8 @@ pub fn from_json(v: &Value) -> Result<Settings, String> {
     let mut s = Settings::default();
     for (k, val) in obj {
         let vals: Vec<&Value> = match (k.as_str(), val) {
-            ("scanpath", Value::Array(a)) => a.iter().collect(),
-            ("scanpath", _) => return Err("scanpath: expected an array of strings".into()),
+            ("scanpath" | "playgo_off", Value::Array(a)) => a.iter().collect(),
+            ("scanpath" | "playgo_off", _) => return Err(format!("{k}: expected an array of strings")),
             _ => vec![val],
         };
         for x in vals {
@@ -355,3 +380,20 @@ pub fn from_json(v: &Value) -> Result<Settings, String> {
 #[cfg(test)]mod import_tests{use super::*;
 #[test]fn legacy_settings_default_to_authorized_auto_import(){let s=from_json(&json!({"inject_ampr":true})).unwrap();assert!(s.auto_import_installed);}
 #[test]fn import_can_be_disabled_and_survives_config_roundtrip(){let s=from_json(&json!({"auto_import_installed":false})).unwrap();assert!(!s.auto_import_installed);assert_eq!(parse(&render(&s)),s);assert_eq!(to_json(&s)["auto_import_installed"],false);}}
+
+#[cfg(test)]
+mod kraken031_tests {
+    use super::*;
+    #[test]
+    fn playgo_exclusions_roundtrip() {
+        let s = from_json(&json!({"playgo_off":["PPSA01556","PPSA01556"]})).unwrap();
+        assert_eq!(s.playgo_off, vec!["PPSA01556"]);
+        assert_eq!(parse(&render(&s)).playgo_off, s.playgo_off);
+        assert_eq!(to_json(&s)["playgo_off"], json!(["PPSA01556"]));
+    }
+    #[test]
+    fn malformed_array_item_does_not_erase_valid_titles() {
+        let s = parse("playgo_off = [\"PPSA01556\", \"not-valid\", \"PPSA12345\"]");
+        assert_eq!(s.playgo_off, vec!["PPSA01556", "PPSA12345"]);
+    }
+}
