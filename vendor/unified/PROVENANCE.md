@@ -2,10 +2,10 @@
 
 This TITAN CORE fork embeds the owner's two supplied ELF files in place of the original TITAN CORE bundled runtime payloads:
 
-- `kstuff-fpkg-1.13-dr-test6.elf` — SHA-256 `b1f60c1ec1685904d396da16710dc9d5676bf0880abf74c65459c886010b9443`, 1,818,680 bytes. Embedded strings report `Welcome To Kstuff Lite 1.13-fpkg-dr-test6`.
+- `kstuff1.13-fpkg-dr-test8-rest.elf` — SHA-256 `127332652374157b8ee0f5eb1128976f9055b88df5da89c0c54183e9c326fc7f`, 1,845,320 bytes. Embedded strings report `Welcome To Kstuff Lite 1.13-fpkg-dr-test8-rest`.
 - `shadowmountplus.elf` — SHA-256 `8755172ec9bef1bff5453ea75606e0caf7c41b5963f94f5a1087e7e8c6d9b1bd`, 3,626,576 bytes. Embedded strings report `1.7beta12`.
 
-The Git blob object identifiers of both uploaded files match the Git blob hashes of the supplied local attachments. These are user-provided binaries, **not** binaries verified against upstream tagged-release digests or matching source revisions. The old service source snapshots and release metadata have been removed from the current branch. Third-party dependency source archives and upstream license notices are retained; they do not establish matching source for the new ELFs. Corresponding source for these specific test binaries should be obtained from their authors if distributed.
+The new kstuff ELF was recovered from a public archive and independently SHA-256 verified against the user's exact uploaded ELF; ShadowMountPlus is byte-for-byte unchanged. These are user-provided binaries, **not** binaries verified against upstream tagged-release digests or matching source revisions. The old service source snapshots and release metadata have been removed from the current branch. Third-party dependency source archives and upstream license notices are retained; they do not establish matching source for the new ELFs. Corresponding source for these specific test binaries should be obtained from their authors if distributed.
 
 `src/stack.rs` embeds these exact filenames and writes them to new versioned paths under `/data/titan-core/payloads` so an older unpacked ELF is not silently reused. Startup remains a one-attempt-per-boot sequence: ShadowMount first creates the automount sentinel, then kstuff can start. Existing resident processes are not terminated or reloaded, and different files at an installed destination are not overwritten. The bundled ShadowMount readiness check now requires the observed `1.7beta12` version string rather than accepting any 1.7 build.
 

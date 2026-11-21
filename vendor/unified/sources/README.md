@@ -6,7 +6,7 @@ They are **not** the exact matching source for the newer user-supplied ELF binar
 
 **Do not extract or rebuild these archives into the active payload filenames.**
 The unified build embeds only the root-level files:
-- `vendor/unified/kstuff-fpkg-1.13-dr-test6.elf`
+- `vendor/unified/kstuff1.13-fpkg-dr-test8-rest.elf`
 - `vendor/unified/shadowmountplus.elf`
 
 The build's `review/verify-unified-payloads.py` script pins both filenames, contents,

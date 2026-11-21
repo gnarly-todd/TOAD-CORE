@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 UNIFIED = ROOT / "vendor" / "unified"
 EXPECTED = {
     "KSTUFF": (
-        "kstuff-fpkg-1.13-dr-test6.elf",
-        "b1f60c1ec1685904d396da16710dc9d5676bf0880abf74c65459c886010b9443",
+        "kstuff1.13-fpkg-dr-test8-rest.elf",
+        "127332652374157b8ee0f5eb1128976f9055b88df5da89c0c54183e9c326fc7f",
         "kstuff-fpkg",
     ),
     "SHADOW": (

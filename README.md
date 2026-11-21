@@ -11,7 +11,7 @@ Internal installed PKGs stay in their system path. External installation keeps y
 
 ## Download the updated TITAN CORE build
 
-This fork bundles `kstuff-fpkg-1.13-dr-test6.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
+This fork bundles `kstuff1.13-fpkg-dr-test8-rest.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
 Open [TITAN CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `payload` artifact. The generated `TITAN-CORE.elf` is the fork's downloadable ELF. It explicitly names its main process `titan-core.elf` at startup, independent of upload filename, so the Active Processes list can identify it. No PS5 console acceptance test has been performed for the supplied binaries.
 
@@ -21,7 +21,7 @@ Close games and reboot the console before switching resident payload versions. T
 
 **TITAN CORE fork payload update:** This fork uses the owner's test ELFs, rather than the upstream TITAN CORE v1.0 bundle. The bundled binaries are checksum-verified at build time but have **not** been validated on PS5 hardware. A reboot is required before loading the updated TITAN CORE ELF if older standalone/bundled kstuff or ShadowMount processes are resident. Source/binary provenance: [vendor/unified/PROVENANCE.md](vendor/unified/PROVENANCE.md).
 
-**This TITAN CORE fork bundles user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12 and starts them automatically.**
+**This TITAN CORE fork bundles user-supplied kstuff-fpkg 1.13-fpkg-dr-test8-rest and ShadowMountPlus 1.7beta12 and starts them automatically.**
 
 ### Loading instructions
 
@@ -30,7 +30,7 @@ Close games and reboot the console before switching resident payload versions. T
 - If standalone services are already running, close games and restart the console for a fresh session. Apply your normal jailbreak, make elfldr available, then load the TITAN CORE ELF once.
 - TITAN CORE does not include a jailbreak exploit. You still need your usual jailbreak and ELF loader. Check service status in Dashboard and Diagnostics.
 
-Developed and maintained by **[devchmod](https://github.com/devchmod)** following six months of independent research, TITAN CORE brings game browsing, USB installation and diagnostics into one PS5 workspace. It integrates the native mounting workflow from Kraken Mount, user-supplied kstuff-fpkg 1.13-dr-test6 and ShadowMountPlus 1.7beta12, with TITAN CORE interface, installer and integration work. It targets jailbroken PS5 consoles with elfldr. The development console uses firmware 13.60; wider hardware compatibility has not been established. This project does not include a console exploit.
+Developed and maintained by **[devchmod](https://github.com/devchmod)** following six months of independent research, TITAN CORE brings game browsing, USB installation and diagnostics into one PS5 workspace. It integrates the native mounting workflow from Kraken Mount, user-supplied kstuff-fpkg 1.13-fpkg-dr-test8-rest and ShadowMountPlus 1.7beta12, with TITAN CORE interface, installer and integration work. It targets jailbroken PS5 consoles with elfldr. The development console uses firmware 13.60; wider hardware compatibility has not been established. This project does not include a console exploit.
 
 [Releases](https://github.com/devchmod/TITAN-CORE/releases) · [Source](https://github.com/devchmod/TITAN-CORE) · [Credits](CREDITS.md)
 

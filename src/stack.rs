@@ -15,9 +15,9 @@ pub fn native_title_permitted(tid:&str)->bool{ NATIVE_TITLES.get_or_init(Default
 pub fn native_permitted()->bool{NATIVE_ALLOWED.load(Ordering::Acquire)}
 use std::time::Duration;
 
-const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff-fpkg-1.13-dr-test6.elf");
+const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff1.13-fpkg-dr-test8-rest.elf");
 const SHADOW: &[u8] = include_bytes!("../vendor/unified/shadowmountplus.elf");
-const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff-fpkg-1.13-dr-test6.elf";
+const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff1.13-fpkg-dr-test8-rest.elf";
 const SHADOW_PATH: &str = "/data/titan-core/payloads/shadowmountplus.elf";
 // system_tmp is boot-scoped. Never remove another launch's attempt marker.
 #[cfg(target_os = "freebsd")]
@@ -144,7 +144,7 @@ impl Stack {
         let s = self.snapshot.lock().unwrap_or_else(|e| e.into_inner());
         json!({"phase":s.phase,"detail":s.detail,"firmware":s.firmware,"api_port":s.port,
             "kstuff_ready":s.kstuff,"shadowmount_ready":s.shadow,"library_fresh":s.updated,
-            "kstuff_bundle":"1.13-fpkg-dr-test6","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
+            "kstuff_bundle":"1.13-fpkg-dr-test8-rest","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
     }
     pub fn games(&self) -> Vec<Value> { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).games.clone() }
     pub fn port(&self) -> u16 { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).port }
