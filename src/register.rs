@@ -32,7 +32,20 @@ fn ctx<T>(r: io::Result<T>, what: impl FnOnce() -> String) -> io::Result<T> {
     r.map_err(|e| io::Error::new(e.kind(), format!("{}: {e}", what())))
 }
 
-/// Recursive copy, like SMP copy_dir: existing files are overwritten.
+/// Kraken Mount 0.3.1 metadata staging: 1 MiB buffered copies instead of
+/// FreeBSD's small fs::copy loop. Only destination copies receive 0666;
+/// original game files and their permissions are never modified.
+fn copy_staged_file(src: &Path, dst: &Path) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let input = fs::File::open(src)?;
+    let mut reader = io::BufReader::with_capacity(1 << 20, input);
+    let mut output = fs::File::create(dst)?;
+    io::copy(&mut reader, &mut output)?;
+    drop(output);
+    fs::set_permissions(dst, fs::Permissions::from_mode(0o666))
+}
+
+/// Recursive copy, like SMP copy_dir: existing staged files are overwritten.
 fn copy_dir(src: &Path, dst: &Path) -> io::Result<()> {
     fs::create_dir_all(dst)?;
     for e in fs::read_dir(src)? {
@@ -41,7 +54,7 @@ fn copy_dir(src: &Path, dst: &Path) -> io::Result<()> {
         if e.file_type()?.is_dir() {
             copy_dir(&s, &d)?;
         } else {
-            fs::copy(&s, &d)?;
+            copy_staged_file(&s, &d)?;
         }
     }
     Ok(())
@@ -66,7 +79,7 @@ fn copy_appmeta(src_sce_sys: &Path, dst: &Path) -> io::Result<()> {
         if !is_appmeta_file(name_str) || !e.file_type()?.is_file() {
             continue;
         }
-        fs::copy(e.path(), dst.join(&name))?;
+        copy_staged_file(&e.path(), &dst.join(&name))?;
     }
     Ok(())
 }
@@ -349,7 +362,7 @@ fn register_inner(title_id: &str, app0: &Path, sce_sys: &Path, backport: Option<
         format!("copy {} -> {}", sce_sys.display(), user_sce_sys.display())
     })?;
     let (icon_src, icon_dst) = (sce_sys.join("icon0.png"), app_dir.join("icon0.png"));
-    ctx(fs::copy(&icon_src, &icon_dst), || {
+    ctx(copy_staged_file(&icon_src, &icon_dst), || {
         format!("copy {} -> {}", icon_src.display(), icon_dst.display())
     })?;
     let appmeta = Path::new(APPMETA_BASE).join(title_id);

@@ -170,32 +170,67 @@ fn scan_error(result: &mut ScanResult, path: PathBuf, error: impl std::fmt::Disp
 /// Last logged scan error per path.
 static LOGGED: OnceLock<Mutex<HashMap<PathBuf, String>>> = OnceLock::new();
 
+/// Sorted direct children of a scan root, filtering AppleDouble/dot entries.
+fn list_scan_entries(dir: &Path, result: &mut ScanResult) -> Vec<PathBuf> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Vec::new(),
+        Err(e) => {
+            scan_error(result, dir.to_path_buf(), e);
+            return Vec::new();
+        }
+    };
+    let mut paths = Vec::new();
+    for entry in entries {
+        match entry {
+            Ok(entry) if entry.file_name().to_string_lossy().starts_with('.') => {}
+            Ok(entry) => paths.push(entry.path()),
+            Err(e) => scan_error(result, dir.to_path_buf(), e),
+        }
+    }
+    paths.sort();
+    paths
+}
+
+/// Exclude backport folders regardless of case (exFAT preserves original casing).
+fn is_backports(path: &Path) -> bool {
+    path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("backports"))
+}
+
 pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResult {
     let mut result = ScanResult { games: Vec::new(), duplicates: Vec::new(), errors: Vec::new(), unstable: Vec::new() };
     let mut seen = HashSet::new();
     let cached = cached_pkgs();
     let installed_roots = crate::installer::roots();
+    // Kraken Mount 0.3.1: direct root entries always precede one-level nested
+    // entries, so a game in a subfolder cannot shadow a direct-root copy.
+    // Do not descend into drive roots, backports, a game, or another scan root.
+    // No general recursion: searching a USB drive's Movies, etc. is unsafe.
+    let mut direct = Vec::new();
+    let mut nested = Vec::new();
+    let mut listed: HashSet<PathBuf> = HashSet::new();
     for root in roots {
         let root = Path::new(root);
-        let entries = match fs::read_dir(root) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == ErrorKind::NotFound => continue,
-            Err(e) => {
-                scan_error(&mut result, root.to_path_buf(), e);
+        let drive_root = root.parent() == Some(Path::new("/mnt"));
+        for path in list_scan_entries(root, &mut result) {
+            if is_backports(&path) || !listed.insert(path.clone()) {
                 continue;
             }
-        };
-        let mut paths = Vec::new();
-        for entry in entries {
-            match entry {
-                // Dot entries (macOS ._X.pkg AppleDouble files) are skipped, as in SMP.
-                Ok(entry) if entry.file_name().to_string_lossy().starts_with('.') => {}
-                Ok(entry) => paths.push(entry.path()),
-                Err(e) => scan_error(&mut result, root.to_path_buf(), e),
+            let descend = !drive_root && path.is_dir()
+                && !(path.join("eboot.bin").is_file() && path.join("sce_sys/param.json").is_file())
+                && !roots.iter().any(|r| Path::new(r) == path);
+            if descend {
+                for child in list_scan_entries(&path, &mut result) {
+                    if !is_backports(&child) && listed.insert(child.clone()) {
+                        nested.push((root.to_path_buf(), child));
+                    }
+                }
             }
+            direct.push((root.to_path_buf(), path));
         }
-        paths.sort();
-        for path in paths {
+    }
+    direct.extend(nested);
+    for (root, path) in direct {
             let metadata = match fs::metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(e) => {
@@ -234,7 +269,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
                     None => pkg_param(&path, metadata.len(), mtime),
                 };
                 (Kind::Pkg, metadata.len(), param)
-            } else if metadata.is_dir() && path.file_name().is_some_and(|n| n != "backports")
+            } else if metadata.is_dir() && !is_backports(&path)
                 && path.join("eboot.bin").is_file() && path.join("sce_sys/param.json").is_file() {
                 let probe = [path.clone(), path.join("sce_sys"), path.join("sce_sys/param.json"), path.join("eboot.bin")];
                 if let Some(age) = still_written(&probe, stability_wait) {
@@ -276,7 +311,6 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
                 result.duplicates.push(source);
             }
         }
-    }
     result.games.sort_by(|a, b| a.title_name.cmp(&b.title_name));
     // A fixed error that comes back is logged again.
     if let Some(logged) = LOGGED.get() {
