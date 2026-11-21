@@ -4,7 +4,7 @@
 
 ## Version 1.0
 
-Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled runtime is unmodified **ampr-emu-ng 0.4.1**; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
+Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled runtime is unmodified **ampr-emu-ng 0.5.0**; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
 
 **Known limit:** full external package size in PS5 System storage is not established. The v1.0 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
@@ -48,9 +48,11 @@ Receipt-proven internal packages moved by older TITAN CORE builds can be returne
 
 The verified rename-based restoration replaces the earlier unsupported hard-link approach and preserves the large metadata-snapshot fix. Cache still occupies additional storage. The maintainer confirmed original-path launch and full internal System storage sizes on the development console with 0.5.7; later installer/UI changes have local tests and require their documented hardware checks. This uses the native cache/mount engine for supported debug FPKGs.
 
-## Kraken Mount v0.3 integration (partial)
+## Kraken Mount v0.3.1 integration (partial)
 
-This TITAN CORE fork now bundles upstream AMPR 0.4.1, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken v0.3's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulator injection, and preservation of newer game-supplied AMPR libraries. **This is not yet a full merge of every Kraken v0.3 feature**. Specifically, v0.3 scan stability/removal, title sound/localization, and USB unmount still require separate integration and console validation. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
+This TITAN CORE fork now bundles upstream AMPR 0.5.0, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulators, and preservation of newer game-supplied AMPR. From v0.3.1 it now also adopts one-level nested scan folders, faster 1 MiB buffered registration metadata copies, a per-title `playgo_off` setting, resilient configuration-array parsing, and batch home-screen registration when the FW12+ per-title install API is unavailable. **This is a selective source port, not a full merge of the upstream application.** Unported features include Kraken's per-game PlayGo interface control, title sound/localization, auto-removal of missing games, and USB unmount. The TITAN installer, original-path package handling, and ShadowMount coordination remain independently maintained. Full console testing is still required. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
+
+For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_050.md). The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
 
 ## Features
 
@@ -130,7 +132,7 @@ The Installer Internal choice now commits the new package to `/user/app/<TITLE_I
 
 ## Launch notice and game-folder help — 0.6.2-beta.1
 
-The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TITAN CORE builds use upstream AMPR 0.4.1 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
+The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TITAN CORE builds use upstream AMPR 0.5.0 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
 
 ## Preserve your PKG archive — 0.6.3-beta.1
 

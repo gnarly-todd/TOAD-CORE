@@ -16,10 +16,10 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 
 | Component | Upstream | Role |
 |---|---|---|
-| Kraken Mount | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount) | Native FPKG/folder mounting, cache, registration and launch code used and adapted in TITAN CORE |
+| Kraken Mount v0.3.1 | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1) | Pinned source archive, with selected scan, registration and configuration changes ported into TITAN CORE |
 | dlc_emu 0.3 | [drakmor/dlc_emu](https://github.com/drakmor/dlc_emu/tree/0.3) | Bundled DLC emulator files copied from Kraken Mount v0.3.0 when needed |
 | pgo_stub 0.6 | [drakmor/pgo_stub](https://github.com/drakmor/pgo_stub/tree/0.6) | Bundled PlayGo emulator, added only where needed |
-| ampr-emu-ng 0.4.1 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.4.1) | Owner-supplied, upstream release-matching packed-game runtime; original 0.4.0 custom notice archived |
+| ampr-emu-ng 0.5.0 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.0) | Owner-supplied, upstream release-matching packed-game runtime; original 0.4.0 custom notice archived |
 | kstuff-fpkg 1.13-dr-test6 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) (historical project reference) | User-supplied resident ELF; exact binary/source revision not verified |
 | ShadowMountPlus 1.7beta12 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | User-supplied resident ELF; exact binary/source revision not verified |
 | PS5 Dump Forge | [quer3q/ps5-dump-forge](https://github.com/quer3q/ps5-dump-forge) | Toolchain/workflow references and attributed sparse-format reader reference |
@@ -30,11 +30,12 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 - Root license: GPL-3.0-or-later; see [LICENSE](LICENSE).
 - Existing dependency notices: [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
 - Current test service binary versions and hashes, retained third-party dependency source snapshots, component licenses and notices: [vendor/unified](vendor/unified). Exact matching source for the new test ELFs has not been verified.
-- Active AMPR 0.4.1 release binary and historical AMPR 0.4.0/custom notice source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [runtime provenance](vendor/ampr-emu-ng/TITAN_BRANDING.md).
+- Active AMPR 0.5.0 release binary and historical AMPR 0.4.0/custom notice source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [runtime provenance](vendor/ampr-emu-ng/TITAN_BRANDING.md).
+- Upstream Kraken Mount v0.3.1 and AMPR v0.5.0 source archives, commit IDs and released runtime checksums: [integration details](docs/KRAKEN_031_AMPR_050.md).
 - Sparse-format port attribution and exact source reference: [vendor/format-reference](vendor/format-reference).
 - TITAN CORE artwork provenance: [docs/branding/PROVENANCE.md](docs/branding/PROVENANCE.md).
 
-The current bundled AMPR v0.4.1 is the upstream release binary. The old custom PLAY NO LIMIT launch-notice source remains archived for attribution, but is not the runtime that gets embedded. Upstream credits in source archives are preserved. Additional third-party code retains its own license terms; consult the included notices/source for each component.
+The current bundled AMPR v0.5.0 is the upstream release binary. The old custom PLAY NO LIMIT launch-notice source remains archived for attribution, but is not the runtime that gets embedded. Upstream credits in source archives are preserved. Additional third-party code retains its own license terms; consult the included notices/source for each component.
 
 ## Reader and decoder source references
 
