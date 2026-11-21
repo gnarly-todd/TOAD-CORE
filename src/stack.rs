@@ -241,7 +241,7 @@ impl Stack {
                 install(KSTUFF_PATH, KSTUFF)?; install(SHADOW_PATH, SHADOW)?;
                 // One atomic attempt per boot, including across TITAN restarts.
                 let mut marker = OpenOptions::new().write(true).create_new(true).open(&attempt).map_err(|e| format!("Startup attempt already owned or unavailable: {e}"))?;
-                marker.write_all(b"ShadowMountPlus 1.7beta12 + kstuff-fpkg 1.13-dr-test6\n").map_err(|e| e.to_string())?;
+                marker.write_all(b"ShadowMountPlus 1.7beta12 + kstuff 1.13-fpkg-dr-test8-rest\n").map_err(|e| e.to_string())?;
                 self.phase("starting", "Starting ShadowMount before kstuff");
                 // ShadowMount creates its no-automount sentinel before waiting for kstuff.
                 if shadow_process {
@@ -256,7 +256,7 @@ impl Stack {
                     }
                     if !sentinel { return Err("ShadowMount startup sentinel not observed; kstuff was not dispatched".into()); }
                     if !kstuff_ready() && !kstuff_process {
-                        self.phase("starting", "Starting bundled kstuff-fpkg 1.13-dr-test6");
+                        self.phase("starting", "Starting bundled kstuff 1.13-fpkg-dr-test8-rest");
                         if let Err(e) = dispatch(KSTUFF_PATH) { log!("unified: kstuff dispatch uncertain: {e}; not retrying"); }
                     }
                 }
