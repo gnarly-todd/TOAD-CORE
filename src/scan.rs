@@ -302,7 +302,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
             }
             let source = Source {
                 drive: crate::storage::drive_of(&path),
-                backport: if backports { backport_for(root, roots, &title_id) } else { None },
+                backport: if backports { backport_for(&root, roots, &title_id) } else { None },
                 path, kind, title_id, title_name, version, size,
             };
             if seen.insert(source.title_id.clone()) {
