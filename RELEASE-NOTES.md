@@ -1,8 +1,20 @@
-# TITAN CORE fork payload integration (2026-11-20)
+# TITAN CORE v1.1 (first public release of this fork)
 
-This fork's source embeds user-supplied kstuff 1.13 FPKG DR Test 6 and ShadowMountPlus 1.7beta12. Download a newly built artifact through the fork's GitHub Actions workflow; the upstream v1.0 download below is a **historical upstream release**, not the updated fork. New console hardware compatibility remains unverified.
+Release: https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.1
+
+This fork's first published release bundles user-supplied Kstuff Lite / FPKG `1.13-fpkg-dr-test8-rest`, ShadowMountPlus `1.7beta12`, official AMPR-EMU-NG `0.5.0`, and selected Kraken Mount `0.3.1` integration.
+
+The GitHub release tag is `v1.1`, and the application reports version `1.1.0`. The uploaded ELF remains `TITAN-CORE.elf` and requests `titan-core.elf` as its process identity. Repository naming remains `gnarly-todd/TOAD-CORE`.
+
+Kraken Mount is **not** bundled as a separate ELF. Selective source-port changes include nested game discovery, buffered metadata staging, a per-title `playgo_off` setting and firmware-12+ batch registration. TITAN's original-path PKG workflow, installer and ShadowMount ownership rules are preserved.
+
+**Validation:** GitHub Actions verifies all resident binary hashes, bundled AMPR and emulator hashes, and optimized PS5 ELF compilation. This does not constitute a hardware compatibility guarantee for every game or PS5 firmware. Restart the PS5 to clear old resident service versions before injecting the updated ELF.
+
+**Attribution:** TITAN CORE originates from [devchmod](https://github.com/devchmod/TITAN-CORE). Kraken Mount / AMPR are attributed to quer3q; kstuff to EchoStretch and relevant contributors; ShadowMountPlus to drakmor. See `CREDITS.md` and third-party licenses.
 
 ---
+
+## Previous upstream release (historical)
 
 # TITAN CORE v1.0
 

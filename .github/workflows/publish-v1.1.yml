@@ -1,0 +1,64 @@
+name: Publish TITAN CORE v1.1
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v1.1.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: titan-core-v1.1-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    name: Verify, build and publish v1.1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify version and bundled payloads
+        run: |
+          grep -q '^version = "1.1.0"$' Cargo.toml
+          grep -q '^## Version 1.1$' README.md
+          python3 review/sync-component-readme.py --check
+          python3 review/verify-unified-payloads.py
+          (cd vendor/ampr-emu-ng && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
+      - name: Build PS5 production ELF
+        run: TITAN_UNIFIED_STACK=1 bash ps5/build.sh
+      - name: Check and package release ELF
+        run: |
+          cp target/ps5/titan-core.elf TITAN-CORE.elf
+          test -s TITAN-CORE.elf
+          sha256sum TITAN-CORE.elf > SHA256SUMS
+          sha256sum -c --strict SHA256SUMS
+          python3 - <<'PY'
+          from pathlib import Path
+          content = Path("TITAN-CORE.elf").read_bytes()
+          assert content[:4] == b"\x7fELF", "Invalid ELF header"
+          assert b"titan-core.elf" in content, "Process name not present"
+          assert b"1.13-fpkg-dr-test8-rest" in content, "Expected kstuff version absent"
+          print(f"Validated {len(content):,} byte TITAN CORE ELF")
+          PY
+      - name: Publish public v1.1 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v1.1 already exists; refusing to overwrite"
+            exit 1
+          fi
+          gh release create v1.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "TITAN CORE v1.1" \
+            --notes-file RELEASE-v1.1.md \
+            --latest \
+            TITAN-CORE.elf SHA256SUMS
+          gh release view v1.1 --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,url,assets
