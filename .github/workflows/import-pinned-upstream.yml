@@ -1,8 +1,5 @@
 name: import pinned Kraken 0.3.1 and AMPR 0.5.0
 on:
-  push:
-    paths:
-      - .github/workflows/import-pinned-upstream.yml
   workflow_dispatch:
 permissions:
   contents: write

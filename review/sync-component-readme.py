@@ -38,10 +38,13 @@ def render() -> str:
         checked_hash(ROOT / "vendor/unified" / item["file"], item["sha256"])
         if not re.fullmatch(r"[A-Za-z0-9_.+-]+", item["embedded_version"].split()[0]):
             raise ValueError(f"Unrecognized component version for {item['name']}")
-    checksum_list = dict(
-        line.split(maxsplit=1) for line in
-        (ROOT / "vendor/unified/SHA256SUMS").read_text().splitlines() if line.strip()
-    )
+    checksum_list = {
+        filename: digest for digest, filename in (
+            line.split(maxsplit=1)
+            for line in (ROOT / "vendor/unified/SHA256SUMS").read_text().splitlines()
+            if line.strip()
+        )
+    }
     for item in (kstuff, shadow):
         if checksum_list.get(item["file"]) != item["sha256"]:
             raise ValueError(f"Mismatch in SHA256SUMS: {item['file']}")
@@ -51,8 +54,13 @@ def render() -> str:
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-._][A-Za-z0-9]+)*", ampr):
         raise ValueError(f"Unexpected AMPR version {ampr!r}")
     ampr_path = ROOT / "vendor/ampr-emu-ng/libSceAmpr.sprx"
-    ampr_sums = dict(line.split(maxsplit=1) for line in
-        (ROOT / "vendor/ampr-emu-ng/SHA256SUMS").read_text().splitlines() if line.strip())
+    ampr_sums = {
+        filename: digest for digest, filename in (
+            line.split(maxsplit=1)
+            for line in (ROOT / "vendor/ampr-emu-ng/SHA256SUMS").read_text().splitlines()
+            if line.strip()
+        )
+    }
     checked_hash(ampr_path, ampr_sums["libSceAmpr.sprx"])
 
     # This identifies the reference release for the selective source port.
@@ -87,14 +95,14 @@ def render() -> str:
 
 | Component | Version | Integration |
 |---|---|---|
-| **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | \`{sversion}\` | Bundled resident ELF |
-| **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v{ampr})** | \`{ampr}\` | Bundled official upstream SPRX |
-| **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | \`{kversion}\` | Bundled resident ELF (user-supplied) |
-| **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v{kraken})** | \`{kraken}\` | Selected upstream source changes; not a separate executable |
+| **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | `{sversion}` | Bundled resident ELF |
+| **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v{ampr})** | `{ampr}` | Bundled official upstream SPRX |
+| **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `{kversion}` | Bundled resident ELF (user-supplied) |
+| **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v{kraken})** | `{kraken}` | Selected upstream source changes; not a separate executable |
 
-**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v{kraken} source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via \`playgo_off\`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
+**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v{kraken} source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
 
-**Process identity:** \`{process_name}\` in the PS5 Active Processes list, as requested by the startup shim; actual display requires console confirmation. The downloadable executable remains \`TITAN-CORE.elf\` in the GitHub Actions \`payload\` artifact.
+**Process identity:** `{process_name}` in the PS5 Active Processes list, as requested by the startup shim; actual display requires console confirmation. The downloadable executable remains `TITAN-CORE.elf` in the GitHub Actions `payload` artifact.
 
 **Version scope:** These are the currently pinned *repository/build* versions, **not** promises that no newer upstream releases exist. They describe the binaries and source-port changes configured for a production build. Only a successful build of the corresponding commit confirms a finished ELF; actual hardware compatibility requires PS5 testing.
 

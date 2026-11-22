@@ -1,8 +1,5 @@
 name: import exact kstuff test8 rest
 on:
-  push:
-    paths:
-      - .github/workflows/import-kstuff-test8.yml
   workflow_dispatch:
 permissions:
   contents: write
