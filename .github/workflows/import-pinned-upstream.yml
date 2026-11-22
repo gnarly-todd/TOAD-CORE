@@ -16,6 +16,8 @@ jobs:
           persist-credentials: true
       - name: Import exact upstream release commits and AMPR runtime
         run: bash review/import-pinned-upstream.sh
+      - name: Synchronize README component versions
+        run: python3 review/sync-component-readme.py --write
       - name: Commit verified vendor source archives and AMPR release library
         run: |
           git config user.name "github-actions[bot]"
@@ -26,7 +28,8 @@ jobs:
             vendor/ampr-emu-ng/UPSTREAM_V050.md \
             vendor/ampr-emu-ng/libSceAmpr.sprx \
             vendor/ampr-emu-ng/VERSION \
-            vendor/ampr-emu-ng/SHA256SUMS
+            vendor/ampr-emu-ng/SHA256SUMS \
+            README.md
           if git diff --cached --quiet; then
             echo "No upstream changes to commit."
           else

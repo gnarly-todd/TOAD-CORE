@@ -16,6 +16,8 @@ jobs:
           persist-credentials: true
       - name: Fetch public archive and verify exact uploaded kstuff SHA-256
         run: python3 review/import-exact-kstuff-test8.py
+      - name: Synchronize README component versions
+        run: python3 review/sync-component-readme.py --write
       - name: Record verified kstuff replacement
         run: |
           git config user.name "github-actions[bot]"

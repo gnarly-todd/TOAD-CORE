@@ -1,0 +1,61 @@
+name: sync TITAN component versions in README
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - vendor/unified/MANIFEST.json
+      - vendor/unified/SHA256SUMS
+      - vendor/ampr-emu-ng/VERSION
+      - vendor/ampr-emu-ng/SHA256SUMS
+      - vendor/kraken-mount/PROVENANCE.md
+      - ps5/entry.c
+      - src/stack.rs
+      - src/scan.rs
+      - src/register.rs
+      - src/config.rs
+      - src/cache.rs
+      - review/sync-component-readme.py
+      - .github/workflows/sync-component-readme.yml
+      - README.md
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: titan-component-readme-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Regenerate README from verified bundled components
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B component-docs-sync origin/main
+            python3 review/sync-component-readme.py --write
+            python3 review/sync-component-readme.py --check
+            if git diff --quiet -- README.md; then
+              echo "README already synchronized"
+              exit 0
+            fi
+            git add README.md
+            git commit -m "docs: synchronize TITAN component versions [skip ci]"
+            if git push origin HEAD:main; then
+              echo "README synchronized on main"
+              exit 0
+            fi
+            echo "Main advanced during sync; retrying from latest source"
+          done
+          echo "Could not publish README synchronization after three attempts" >&2
+          exit 1

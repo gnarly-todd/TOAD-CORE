@@ -4,14 +4,33 @@
 
 ## Version 1.0
 
-Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled runtime is unmodified **ampr-emu-ng 0.5.0**; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
+Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled AMPR runtime version is listed in the table below; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
 
 **Known limit:** full external package size in PS5 System storage is not established. The v1.0 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
 
+<!-- BEGIN GENERATED TITAN COMPONENTS: review/sync-component-readme.py -->
+## Included component versions
+
+| Component | Version | Integration |
+|---|---|---|
+| **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | `1.7beta12` | Bundled resident ELF |
+| **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.0)** | `0.5.0` | Bundled official upstream SPRX |
+| **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `1.13-fpkg-dr-test8-rest` | Bundled resident ELF (user-supplied) |
+| **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1)** | `0.3.1` | Selected upstream source changes; not a separate executable |
+
+**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v0.3.1 source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
+
+**Process identity:** `titan-core.elf` in the PS5 Active Processes list, as requested by the startup shim; actual display requires console confirmation. The downloadable executable remains `TITAN-CORE.elf` in the GitHub Actions `payload` artifact.
+
+**Version scope:** These are the currently pinned *repository/build* versions, **not** promises that no newer upstream releases exist. They describe the binaries and source-port changes configured for a production build. Only a successful build of the corresponding commit confirms a finished ELF; actual hardware compatibility requires PS5 testing.
+
+*This section is generated automatically from the checked-in component manifest, runtime version, Kraken source provenance, and PS5 process-name code. Updates are synchronized by GitHub Actions and the component import workflows. Do not edit this section manually.*
+<!-- END GENERATED TITAN COMPONENTS -->
+
 ## Download the updated TITAN CORE build
 
-This fork bundles `kstuff1.13-fpkg-dr-test8-rest.elf` and `shadowmountplus.elf` (1.7beta12). The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
+This fork bundles the versioned kstuff and ShadowMountPlus ELF files listed above. The upstream TITAN CORE v1.0 release ELF **does not contain** these replacements.
 
 Open [TITAN CORE build workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/build.yml), select a **successful** run for `main`, and download the `payload` artifact. The generated `TITAN-CORE.elf` is the fork's downloadable ELF. It explicitly names its main process `titan-core.elf` at startup, independent of upload filename, so the Active Processes list can identify it. No PS5 console acceptance test has been performed for the supplied binaries.
 
@@ -21,7 +40,7 @@ Close games and reboot the console before switching resident payload versions. T
 
 **TITAN CORE fork payload update:** This fork uses the owner's test ELFs, rather than the upstream TITAN CORE v1.0 bundle. The bundled binaries are checksum-verified at build time but have **not** been validated on PS5 hardware. A reboot is required before loading the updated TITAN CORE ELF if older standalone/bundled kstuff or ShadowMount processes are resident. Source/binary provenance: [vendor/unified/PROVENANCE.md](vendor/unified/PROVENANCE.md).
 
-**This TITAN CORE fork bundles user-supplied kstuff 1.13-fpkg-dr-test8-rest and ShadowMountPlus 1.7beta12 and starts them automatically.**
+**This TITAN CORE fork bundles the user-supplied kstuff and ShadowMountPlus versions shown in the component table and starts them automatically.**
 
 ### Loading instructions
 
@@ -30,7 +49,7 @@ Close games and reboot the console before switching resident payload versions. T
 - If standalone services are already running, close games and restart the console for a fresh session. Apply your normal jailbreak, make elfldr available, then load the TITAN CORE ELF once.
 - TITAN CORE does not include a jailbreak exploit. You still need your usual jailbreak and ELF loader. Check service status in Dashboard and Diagnostics.
 
-Developed and maintained by **[devchmod](https://github.com/devchmod)** following six months of independent research, TITAN CORE brings game browsing, USB installation and diagnostics into one PS5 workspace. It integrates the native mounting workflow from Kraken Mount, user-supplied kstuff 1.13-fpkg-dr-test8-rest and ShadowMountPlus 1.7beta12, with TITAN CORE interface, installer and integration work. It targets jailbroken PS5 consoles with elfldr. The development console uses firmware 13.60; wider hardware compatibility has not been established. This project does not include a console exploit.
+Developed and maintained by **[devchmod](https://github.com/devchmod)** following six months of independent research, TITAN CORE brings game browsing, USB installation and diagnostics into one PS5 workspace. It integrates the native mounting workflow from Kraken Mount and the user-supplied kstuff and ShadowMountPlus binaries shown above, with TITAN CORE interface, installer and integration work. It targets jailbroken PS5 consoles with elfldr. The development console uses firmware 13.60; wider hardware compatibility has not been established. This project does not include a console exploit.
 
 [Releases](https://github.com/devchmod/TITAN-CORE/releases) · [Source](https://github.com/devchmod/TITAN-CORE) · [Credits](CREDITS.md)
 
@@ -48,9 +67,9 @@ Receipt-proven internal packages moved by older TITAN CORE builds can be returne
 
 The verified rename-based restoration replaces the earlier unsupported hard-link approach and preserves the large metadata-snapshot fix. Cache still occupies additional storage. The maintainer confirmed original-path launch and full internal System storage sizes on the development console with 0.5.7; later installer/UI changes have local tests and require their documented hardware checks. This uses the native cache/mount engine for supported debug FPKGs.
 
-## Kraken Mount v0.3.1 integration (partial)
+## Kraken Mount integration (partial)
 
-This TITAN CORE fork now bundles upstream AMPR 0.5.0, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulators, and preservation of newer game-supplied AMPR. From v0.3.1 it now also adopts one-level nested scan folders, faster 1 MiB buffered registration metadata copies, a per-title `playgo_off` setting, resilient configuration-array parsing, and batch home-screen registration when the FW12+ per-title install API is unavailable. **This is a selective source port, not a full merge of the upstream application.** Unported features include Kraken's per-game PlayGo interface control, title sound/localization, auto-removal of missing games, and USB unmount. The TITAN installer, original-path package handling, and ShadowMount coordination remain independently maintained. Full console testing is still required. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
+This TITAN CORE fork bundles the upstream AMPR version shown above, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulators, and preservation of newer game-supplied AMPR. The current Kraken source port also adopts one-level nested scan folders, faster 1 MiB buffered registration metadata copies, a per-title `playgo_off` setting, resilient configuration-array parsing, and batch home-screen registration when the FW12+ per-title install API is unavailable. **This is a selective source port, not a full merge of the upstream application.** Unported features include Kraken's per-game PlayGo interface control, title sound/localization, auto-removal of missing games, and USB unmount. The TITAN installer, original-path package handling, and ShadowMount coordination remain independently maintained. Full console testing is still required. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
 
 For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_050.md). The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
 
@@ -132,7 +151,7 @@ The Installer Internal choice now commits the new package to `/user/app/<TITLE_I
 
 ## Launch notice and game-folder help — 0.6.2-beta.1
 
-The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TITAN CORE builds use upstream AMPR 0.5.0 instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
+The historical bundled runtime introduced a custom **PLAY NO LIMIT** notice; current TITAN CORE builds use the upstream AMPR release identified in the component table instead. Settings uses **Game folders** with corrected system/external paths and an automatic-discovery placeholder. Close games before upgrading; the new notice applies on the next game start with the bundled runtime. Native installer/game behavior remains the 0.6.1 baseline. See [validation](docs/PLAY_NO_LIMIT_VALIDATION.md).
 
 ## Preserve your PKG archive — 0.6.3-beta.1
 
