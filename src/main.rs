@@ -129,32 +129,35 @@ fn coordinate_source(state:&State,src:&Source)->Result<(),String>{
 
 /// One game of the scan: check, build, register, status. A failed game is retried only when
 /// its inputs_key changes or a rebuild is forced.
-fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<String>, failed: &mut HashMap<PathBuf, String>, staged: &mut Vec<Source>) {
+fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<String>, failed: &mut HashMap<PathBuf, String>, staged: &mut Vec<Source>) -> bool {
     let tid = &src.title_id;
     #[cfg(feature="unified-stack")]
     if !state.stack.native_owns(tid){
         state.titles.lock().unwrap().remove(tid);
-        state.update(&src.path,|g|{g.status="shadow_owned";g.error=Some("Managed by ShadowMount, or waiting for a fresh service snapshot".into());});return;
+        state.update(&src.path,|g|{g.status="shadow_owned";g.error=Some("Managed by ShadowMount, or waiting for a fresh service snapshot".into());});return false;
     }
     let forced = state.forced.lock().unwrap().remove(tid);
     let fresh = cache::check(src, s);
+    // Cache disk usage only needs a rescan when a build/refresh is attempted,
+    // or on the periodic reconciliation. Healthy titles stay on the fast path.
+    let might_change_cache = forced || !matches!(fresh, Fresh::Fresh);
     // The failure fingerprint walks all cache inputs. Do not compute it on
     // healthy titles (the common path), only when a prior failure exists.
     let same_failed_inputs = !forced && failed.get(&src.path)
         .is_some_and(|previous| previous == &inputs_key(src, s));
     let r = if same_failed_inputs {
         state.update(&src.path, |g| g.status = "error");
-        return;
+        return false;
     } else if !forced && matches!(fresh, Fresh::Fresh) && registered.contains(tid) {
         // Each scan: redo /system_ex/app/<TID> when it is gone or stale (USB replug, rest
         // mode); a no-op when app0 is mounted there. Status stays "ready" (no UI flicker).
         match register::mount(tid, &cache::app0(src), backport_of(src)) {
             Ok(()) => {
                 #[cfg(feature="unified-stack")]
-                if let Err(error)=coordinate_source(state,src){state.titles.lock().unwrap().remove(tid);state.update(&src.path,|g|{g.status="error";g.error=Some(error);});return;}
+                if let Err(error)=coordinate_source(state,src){state.titles.lock().unwrap().remove(tid);state.update(&src.path,|g|{g.status="error";g.error=Some(error);});return false;}
                 state.titles.lock().unwrap().insert(tid.clone());
                 state.update(&src.path, |g| { g.status = "ready"; g.error = None; });
-                return;
+                return false;
             }
             Err(e) => Err(e),
         }
@@ -174,7 +177,7 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
             if let Err(error)=coordinate_source(state,src){
                 state.titles.lock().unwrap().remove(tid);
                 log!("{tid}: native overlay coordination: {error}");
-                state.update(&src.path,|g|{g.status="error";g.error=Some(format!("Overlay coordination: {error}"));});return;
+                state.update(&src.path,|g|{g.status="error";g.error=Some(format!("Overlay coordination: {error}"));});return might_change_cache;
             }
             failed.remove(&src.path);
             registered.insert(tid.clone());
@@ -196,6 +199,7 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
             toast(s, &format!("{}: failed, see the log", src.title_name));
         }
     }
+    might_change_cache
 }
 
 /// Replaces the UI's game list with the scan: an entry keeps its status while its source
@@ -390,6 +394,9 @@ fn main() {
     #[cfg(feature="unified-stack")]
     let mut restore_errors: HashMap<String,String> = HashMap::new();
     let (mut registered, mut failed) = (HashSet::new(), HashMap::new());
+    // Reconcile game-written cache changes periodically, while immediate cache
+    // builds and purges invalidate the total. No persistent/approximate cache.
+    let mut cache_usage_at: Option<Instant> = None;
     loop {
         // A game runs: nothing that could touch its app0 or /system_ex mount. Rescan, rebuild
         // and purge requests stay queued (forced / purge) for after it exits.
@@ -469,7 +476,10 @@ fn main() {
         publish(&state,&r);
         #[cfg(feature="unified-stack")]
         if !state.stack.native_ready(){
-            *state.cache_total.lock().unwrap()=cache::total_size();
+            if cache_usage_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(45)) {
+                *state.cache_total.lock().unwrap() = cache::total_size();
+                cache_usage_at = Some(Instant::now());
+            }
             state.busy.store(false,Ordering::SeqCst);drop(work);state.wait(Duration::from_secs(2));continue;
         }
         if !watcher_started{
@@ -480,7 +490,8 @@ fn main() {
         #[cfg(feature="unified-stack")]
         if !state.paused() && state.stack.services()["shadowmount_ready"]==true {background::hide_shadow_launcher();}
         // Purge after the scan, so `keep` is this scan's library and every kept title rebuilds below.
-        if state.purge.swap(false, Ordering::SeqCst) {
+        let mut cache_mutated = state.purge.swap(false, Ordering::SeqCst);
+        if cache_mutated {
             let keep: Vec<String> = r.games.iter().map(|g| g.title_id.clone()).collect();
             match cache::purge(&keep) {
                 Ok(()) => log!("caches purged; {} kept for rebuild", keep.len()),
@@ -500,7 +511,7 @@ fn main() {
                 log!("a game started; scan paused until it exits");
                 break;
             }
-            process(&state, &s, src, &mut registered, &mut failed, &mut staged);
+            cache_mutated |= process(&state, &s, src, &mut registered, &mut failed, &mut staged);
         }
         // Batch only when no game is running. If interrupted, staged titles
         // remain on disk and are naturally retried on the next scan pass.
@@ -550,7 +561,10 @@ fn main() {
                 toast(&s, &format!("Batch registration failed for {} games: {e}", titles.len()));
             }
         }
-        *state.cache_total.lock().unwrap() = cache::total_size();
+        if cache_mutated || cache_usage_at.is_none_or(|at| at.elapsed() >= Duration::from_secs(45)) {
+            *state.cache_total.lock().unwrap() = cache::total_size();
+            cache_usage_at = Some(Instant::now());
+        }
         check_space(&state, &s);
         state.busy.store(false, Ordering::SeqCst);
         drop(work);
