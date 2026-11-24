@@ -17,7 +17,7 @@ Internal installed PKGs stay in their system path. External installation keeps y
 | Component | Version | Integration |
 |---|---|---|
 | **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | `1.7beta12` | Bundled resident ELF |
-| **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.0)** | `0.5.0` | Bundled official upstream SPRX |
+| **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.1)** | `0.5.1` | Bundled official upstream SPRX |
 | **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `1.13-fpkg-dr-test8-rest-fast` | Bundled resident ELF (user-supplied) |
 | **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1)** | `0.3.1` | Selected upstream source changes; not a separate executable |
 
