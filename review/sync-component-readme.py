@@ -89,7 +89,7 @@ def render() -> str:
         if f'/data/titan-core/payloads/{path}' not in stack:
             raise ValueError(f"{sym} runtime path does not match the manifest")
 
-    kversion = kstuff["embedded_version"].split()[0]
+    kversion = kstuff.get("display_version", kstuff["embedded_version"].split()[0])
     sversion = shadow["embedded_version"].split()[0]
     return f"""## Included component versions
 

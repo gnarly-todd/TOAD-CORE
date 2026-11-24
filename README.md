@@ -16,7 +16,7 @@ Internal installed PKGs stay in their system path. External installation keeps y
 |---|---|---|
 | **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | `1.7beta12` | Bundled resident ELF |
 | **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.0)** | `0.5.0` | Bundled official upstream SPRX |
-| **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `1.13-fpkg-dr-test8-rest` | Bundled resident ELF (user-supplied) |
+| **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `1.13-fpkg-dr-test8-rest-fast` | Bundled resident ELF (user-supplied) |
 | **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1)** | `0.3.1` | Selected upstream source changes; not a separate executable |
 
 **Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v0.3.1 source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
