@@ -1,0 +1,94 @@
+# Standalone, branch-only build of patched upstream AMPR v0.5.1.
+# Never substitutes the official vendor binary or publishes a stable release.
+name: experimental AMPR + TITAN CORE
+
+on:
+  push:
+    branches:
+      - experimental/performance
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: experimental-ampr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  patched-runtime:
+    if: github.ref == 'refs/heads/experimental/performance'
+    name: test AMPR, build custom SPRX and TITAN ELF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify pinned components
+        run: |
+          python3 review/verify-kstuff-fast-pin.py
+          python3 review/verify-unified-payloads.py
+          (cd vendor/ampr-emu-ng && sha256sum -c --strict SHA256SUMS)
+      - name: Fetch exact upstream v0.5.1 source and apply experimental patch
+        env:
+          AMPR_DIR: ${{ runner.temp }}/ampr-source
+        run: |
+          git clone --depth 1 --branch v0.5.1 https://github.com/quer3q/ampr-emu-ng.git "$AMPR_DIR"
+          test "$(git -C "$AMPR_DIR" rev-parse HEAD)" = e1789c11bf36c2f4e9b67c5452935c1816674a2c
+          python3 review/ampr-experimental/apply.py "$AMPR_DIR"
+          git -C "$AMPR_DIR" diff --check
+          git -C "$AMPR_DIR" diff --stat
+      - name: Install upstream host-test toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal
+      - name: Test patched upstream runtime source
+        env:
+          RUSTUP_TOOLCHAIN: 1.100.0
+          AMPR_DIR: ${{ runner.temp }}/ampr-source
+        run: cd "$AMPR_DIR" && cargo test --workspace --locked
+      - name: Build patched release and debug SPRX with upstream PS5 SDK
+        env:
+          AMPR_DIR: ${{ runner.temp }}/ampr-source
+        run: |
+          cd "$AMPR_DIR"
+          bash ps5/build-docker.sh dist AMPR_BETA=1 AMPR_GIT_REV=titanexp
+          test -s libSceAmpr.sprx
+          test -s libSceAmpr-debug.sprx
+      - name: Stage custom library separately from official vendor files
+        env:
+          AMPR_DIR: ${{ runner.temp }}/ampr-source
+        run: |
+          mkdir -p target/ps5
+          cp "$AMPR_DIR/libSceAmpr.sprx" target/ps5/libSceAmpr-experimental.sprx
+          cp "$AMPR_DIR/libSceAmpr-debug.sprx" target/ps5/libSceAmpr-experimental-debug.sprx
+          (cd target/ps5 && sha256sum libSceAmpr-experimental*.sprx > AMPR_EXPERIMENTAL_SHA256SUMS)
+      - name: Build TITAN ELF embedding the experimental AMPR runtime
+        env:
+          TITAN_UNIFIED_STACK: "1"
+          TITAN_EXPERIMENTAL_AMPR: "1"
+        run: bash ps5/build.sh
+      - name: Verify output and prepare standalone experimental artifact
+        run: |
+          test -s target/ps5/titan-core-stage1.elf
+          test -s target/ps5/titan-core.elf
+          cp target/ps5/titan-core.elf target/ps5/TITAN-CORE-experimental-AMPR.elf
+          (cd target/ps5 && sha256sum TITAN-CORE-experimental-AMPR.elf > TITAN_EXPERIMENTAL_SHA256SUMS)
+          cat > target/ps5/EXPERIMENTAL_README.txt <<'EOF'
+          TITAN CORE experimental/performance AMPR build, not a stable release.
+          This ELF embeds a separate patched AMPR-EMU-NG 0.5.1 SPRX.
+          Fast Kstuff 1.13-fpkg-dr-test8-rest-fast and ShadowMountPlus are unchanged.
+          Changed AMPR: skip redundant weighted queue lane scans; decoded cache
+          protection hits 3 -> 2 and protected allocation 50% -> 60%.
+          Includes upstream original source commit pin and runtime unit tests.
+          Physical PS5 loading, stutter and crash behavior NOT verified by CI.
+          Existing game saves and running mounts must not be changed during install.
+          To restore official AMPR, use the normal TITAN CORE v1.2 build.
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TITAN-CORE-experimental-AMPR
+          path: |
+            target/ps5/TITAN-CORE-experimental-AMPR.elf
+            target/ps5/TITAN_EXPERIMENTAL_SHA256SUMS
+            target/ps5/libSceAmpr-experimental.sprx
+            target/ps5/libSceAmpr-experimental-debug.sprx
+            target/ps5/AMPR_EXPERIMENTAL_SHA256SUMS
+            target/ps5/EXPERIMENTAL_README.txt
+          if-no-files-found: error
