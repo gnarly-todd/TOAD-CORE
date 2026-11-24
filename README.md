@@ -4,6 +4,8 @@
 
 ## Version 1.2
 
+> **Experimental performance branch:** See [performance audit and console benchmark plan](docs/PERFORMANCE_AUDIT.md). This branch is not a production release; the pinned components remain unchanged.
+
 **Kstuff pinning:** This and all subsequent builds use the user-supplied Fast Kstuff file kstuff1.13-fpkg-dr-test8-rest-fast.elf, SHA-256 221fa41c43597677c1153d5224174be9062105c0c9a3379e96cb45d278aa52fc, until you explicitly supply a replacement. Production build checks reject any different kstuff binary, including the non-fast test8-rest variant.
 
 Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled AMPR runtime version is listed in the table below; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
