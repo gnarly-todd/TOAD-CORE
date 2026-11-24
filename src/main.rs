@@ -138,7 +138,11 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
     }
     let forced = state.forced.lock().unwrap().remove(tid);
     let fresh = cache::check(src, s);
-    let r = if !forced && failed.get(&src.path) == Some(&inputs_key(src, s)) {
+    // The failure fingerprint walks all cache inputs. Do not compute it on
+    // healthy titles (the common path), only when a prior failure exists.
+    let same_failed_inputs = !forced && failed.get(&src.path)
+        .is_some_and(|previous| previous == &inputs_key(src, s));
+    let r = if same_failed_inputs {
         state.update(&src.path, |g| g.status = "error");
         return;
     } else if !forced && matches!(fresh, Fresh::Fresh) && registered.contains(tid) {
@@ -199,22 +203,33 @@ fn process(state: &State, s: &Settings, src: &Source, registered: &mut HashSet<S
 fn publish(state: &State, r: &scan::ScanResult) {
     let mut games = state.games.lock().unwrap();
     let old = std::mem::take(&mut *games);
+    // Preserve the first non-duplicate status for each (source path, title)
+    // without rescanning the previous dashboard on every library entry.
+    let mut old_by_source: HashMap<(&std::path::Path, &str), &web::Game> = HashMap::new();
+    for g in &old {
+        if g.status != "duplicate" {
+            old_by_source.entry((g.src.path.as_path(), g.src.title_id.as_str())).or_insert(g);
+        }
+    }
+    let mut visible: HashSet<String> = HashSet::with_capacity(r.games.len());
+    games.reserve(r.games.len() + r.duplicates.len() + r.unstable.len());
     for src in &r.games {
-        let prev = old.iter().find(|g| g.src.path == src.path && g.src.title_id == src.title_id && g.status != "duplicate");
+        visible.insert(src.title_id.clone());
+        let prev = old_by_source.get(&(src.path.as_path(), src.title_id.as_str()));
         games.push(match prev {
-            Some(g) => web::Game { src: src.clone(), ..g.clone() },
+            Some(g) => web::Game { src: src.clone(), ..(*g).clone() },
             None => web::Game { src: src.clone(), status: "pending", error: None, cache_size: 0, cache_built: None },
         });
     }
     for src in &r.duplicates {
         games.push(web::Game { src: src.clone(), status: "duplicate", error: None, cache_size: 0, cache_built: None });
     }
-    // An in-progress copy does not make an existing title disappear from the dashboard.
+    // Keep an existing title visible while its source copy is in progress.
     for (path, tid) in &r.unstable {
         if let Some(previous) = old.iter().find(|g| &g.src.path == path
             && tid.as_ref().is_none_or(|t| g.src.title_id == *t)
             && g.status != "duplicate") {
-            if !games.iter().any(|g| g.src.title_id == previous.src.title_id && g.status != "duplicate") {
+            if visible.insert(previous.src.title_id.clone()) {
                 games.push(previous.clone());
             }
         }
