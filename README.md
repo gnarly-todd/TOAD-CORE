@@ -2,11 +2,11 @@
 <h1 align="center">TITAN CORE</h1>
 <p align="center">A PS5 game workspace with a native FPKG engine, external-drive installer and live diagnostics.</p>
 
-## Version 1.1b (Fast Kstuff variant)
+## Version 1.2
 
 Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled AMPR runtime version is listed in the table below; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
 
-**Known limit:** full external package size in PS5 System storage is not established. The v1.1 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
+**Known limit:** full external package size in PS5 System storage is not established. The v1.2 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
 
 <!-- BEGIN GENERATED TITAN COMPONENTS: review/sync-component-readme.py -->
@@ -71,7 +71,7 @@ The verified rename-based restoration replaces the earlier unsupported hard-link
 
 This TITAN CORE fork bundles the upstream AMPR version shown above, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulators, and preservation of newer game-supplied AMPR. The current Kraken source port also adopts one-level nested scan folders, faster 1 MiB buffered registration metadata copies, a per-title `playgo_off` setting, resilient configuration-array parsing, and batch home-screen registration when the FW12+ per-title install API is unavailable. **This is a selective source port, not a full merge of the upstream application.** Unported features include Kraken's per-game PlayGo interface control, title sound/localization, auto-removal of missing games, and USB unmount. The TITAN installer, original-path package handling, and ShadowMount coordination remain independently maintained. Full console testing is still required. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
 
-For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_050.md). The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
+For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_051.md). The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
 
 ## Features
 

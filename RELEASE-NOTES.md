@@ -1,3 +1,21 @@
+# TITAN CORE v1.2 (AMPR 0.5.1)
+
+Release: https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.2
+
+TITAN CORE v1.2 upgrades the bundled official, non-debug AMPR-EMU-NG to v0.5.1. The user's supplied libSceAmpr(1).sprx is identical to the official upstream release asset: SHA-256 7ca61afc444f0b44d2f005506dde16cb43e74dae4b1e045323b291b8db1c3d5d (706,976 bytes).
+
+Upstream v0.5.1 reports faster read batches and fixes involving save icons, shared save mounts and mixed packed/on-disk directory listings. These are upstream changelog claims, not independently tested results on this PS5.
+
+Other components remain kstuff 1.13-fpkg-dr-test8-rest-fast, ShadowMountPlus 1.7beta12, and Kraken Mount 0.3.1 (partial source integration only). The game installer, original-path PKG workflow and titan-core.elf process name are retained.
+
+App version: 1.2.0. Stable GitHub release tag: v1.2. The previous v1.1 and Fast Kstuff v1.1b release assets remain unchanged.
+
+The on-console AMPR ownership marker allows the new library to replace a previous TITAN-bundled copy. Manually installed custom AMPR libraries are preserved. Reboot to clear resident payloads before upgrading. The project does not contain a jailbreak exploit. Automated verification does not establish universal hardware or game compatibility.
+
+Attribution: original TITAN CORE by devchmod; AMPR/Kraken by quer3q; kstuff by EchoStretch and contributors; ShadowMountPlus by drakmor; all upstream licenses and authors remain credited.
+
+---
+
 # TITAN CORE v1.1b - Fast Kstuff pre-release
 
 This optional pre-release replaces only the checksum-pinned kstuff test8-rest ELF with the user-provided test8-rest-fast variant. Runtime process name stays titan-core.elf. App SemVer: 1.1.1-beta.1.
