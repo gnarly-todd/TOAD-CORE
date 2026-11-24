@@ -53,13 +53,19 @@ pub fn drives() -> Vec<Drive> {
     v
 }
 
-pub fn drive_of(path: &Path) -> String {
+/// Resolve a source using a mount snapshot from the current scan. Avoid up
+/// to ten statfs calls per game; the next scan refreshes the mount list.
+pub fn drive_of_with_mounts(path: &Path, mounts: &[String]) -> String {
     let p = path.to_string_lossy();
-    mounted_aliases()
-        .into_iter()
-        .filter(|m| p == m.as_str() || p.starts_with(&format!("{m}/")))
+    mounts.iter()
+        .filter(|m| p == m.as_str() || p.strip_prefix(m.as_str()).is_some_and(|tail| tail.starts_with('/')))
         .max_by_key(|m| m.len())
+        .cloned()
         .unwrap_or_else(|| "/data".into())
+}
+
+pub fn drive_of(path: &Path) -> String {
+    drive_of_with_mounts(path, &mounted_aliases())
 }
 
 /// SMP SM_DEFAULT_SCAN_PATHS_INITIALIZER (include/sm_paths.h) order, present drives only.
@@ -86,4 +92,24 @@ pub fn mounted_aliases() -> Vec<String> {
         .chain((0..EXT).map(|i| format!("/mnt/ext{i}")))
         .filter(|m| mounted(m).is_some())
         .collect()
+}
+
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+
+    #[test]
+    fn mounted_alias_snapshot_respects_boundaries_and_longest_match() {
+        let mounts = vec!["/mnt/usb0".to_string(), "/mnt/ext0".to_string(),
+                          "/mnt/ext0/ps5".to_string()];
+        assert_eq!(drive_of_with_mounts(Path::new("/mnt/usb0/games/title.pkg"), &mounts),
+                   "/mnt/usb0");
+        assert_eq!(drive_of_with_mounts(Path::new("/mnt/ext0/ps5/homebrew"), &mounts),
+                   "/mnt/ext0/ps5");
+        assert_eq!(drive_of_with_mounts(Path::new("/mnt/usb01/something"), &mounts),
+                   "/data");
+        assert_eq!(drive_of_with_mounts(Path::new("/data/homebrew"), &mounts),
+                   "/data");
+    }
 }

@@ -221,6 +221,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
     let mut result = ScanResult { games: Vec::new(), duplicates: Vec::new(), errors: Vec::new(), unstable: Vec::new() };
     let mut seen = HashSet::new();
     let cached = cached_pkgs();
+    let mounted = crate::storage::mounted_aliases();
     let indexed_backports = if backports { index_backports(roots) } else { BackportIndex::new() };
     let installed_roots = crate::installer::roots();
     // Kraken Mount 0.3.1: direct root entries always precede one-level nested
@@ -263,7 +264,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
                 && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("pkg")) {
                 // External download archives belong to Installer, never automatic mount discovery.
                 // Only a receipt-proven TITAN installation or a genuine system PKG path is playable.
-                if crate::storage::drive_of(&path) != "/data"
+                if crate::storage::drive_of_with_mounts(&path, &mounted) != "/data"
                     && !crate::library::installed_package_path(&path)
                     && !installed_roots.iter().any(|dir| {
                         let dir = Path::new(dir);
@@ -322,7 +323,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
                 continue;
             }
             let source = Source {
-                drive: crate::storage::drive_of(&path),
+                drive: crate::storage::drive_of_with_mounts(&path, &mounted),
                 backport: if backports { backport_for(&root, roots, &title_id, &indexed_backports) } else { None },
                 path, kind, title_id, title_name, version, size,
             };
