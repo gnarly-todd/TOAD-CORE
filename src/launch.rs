@@ -770,6 +770,9 @@ impl Watcher {
             }
             None => now < deadline && alive(pid),
         });
+        // Unresolved execs can be polled every 10 ms. Avoid cloning the
+        // entire title set until an exec actually resolves to a title ID.
+        if found.is_empty() { return; }
         let titles = self.titles();
         for (pid, tid) in found {
             if titles.contains(&tid) {

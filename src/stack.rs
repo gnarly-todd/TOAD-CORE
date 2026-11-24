@@ -203,7 +203,16 @@ impl Stack {
                     let Some(games) = value["games"].as_array() else { { let mut s = state.stack.snapshot.lock().unwrap_or_else(|e| e.into_inner()); s.updated = false; s.shadow = false; NATIVE_ALLOWED.store(false,Ordering::Release); } state.stack.phase("error", "Invalid ShadowMount games snapshot"); std::thread::sleep(Duration::from_secs(3)); continue; };
                     let games:Vec<Value> = games.iter().filter(|g| g["title_id"].as_str().is_some_and(|tid| crate::scan::valid_tid(tid) && tid != "KRKN00001")).map(normalize_game).collect();
                     let mut s = state.stack.snapshot.lock().unwrap_or_else(|e| e.into_inner());
-                    NATIVE_TITLES.get_or_init(Default::default).lock().unwrap_or_else(|e|e.into_inner()).retain(|tid|!crate::library::shadow_owns(&games,tid));
+                    // Shadow ownership is evaluated for each native title every 2s.
+                    // Index remote owners once per snapshot instead of rescanning
+                    // all image/folder entries for every native title.
+                    let shadow_owned: std::collections::HashSet<String> = games.iter()
+                        .filter(|g| matches!(g["kind"].as_str(), Some("image" | "folder")))
+                        .filter_map(|g| g["title_id"].as_str().map(str::to_owned))
+                        .collect();
+                    NATIVE_TITLES.get_or_init(Default::default)
+                        .lock().unwrap_or_else(|e|e.into_inner())
+                        .retain(|tid| !shadow_owned.contains(tid));
                     s.games = games; s.updated = true; s.shadow = true; s.kstuff = kstuff_ready();
                     NATIVE_ALLOWED.store(s.kstuff,Ordering::Release);
                     s.phase = if s.kstuff { "ready" } else { "degraded" }.into();
