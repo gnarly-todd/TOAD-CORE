@@ -1,0 +1,67 @@
+name: Publish TITAN CORE v1.1b Fast Kstuff
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v1.1b.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: titan-core-v1.1b-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release preparation
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify archive and import exact user Fast Kstuff binary
+        run: python3 review/import-kstuff-test8-fast.py
+      - name: Commit fast bundle and version metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A src/stack.rs vendor/unified/ review/verify-unified-payloads.py \
+            review/sync-component-readme.py README.md CREDITS.md Cargo.toml \
+            Cargo.lock RELEASE-NOTES.md
+          test -n "$(git diff --cached --name-only)" || exit 1
+          git commit -m "Embed verified fast kstuff in TITAN CORE v1.1b"
+          git push origin HEAD:main
+          echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Build and verify v1.1b production ELF
+        run: |
+          TITAN_UNIFIED_STACK=1 bash ps5/build.sh
+          cp target/ps5/titan-core.elf TITAN-CORE.elf
+          sha256sum TITAN-CORE.elf > SHA256SUMS
+          sha256sum -c --strict SHA256SUMS
+          python3 - <<'PY'
+          from pathlib import Path
+          elf = Path("TITAN-CORE.elf").read_bytes()
+          assert elf[:4] == b"\x7fELF"
+          assert b"titan-core.elf" in elf
+          assert b"1.13-fpkg-dr-test8-rest-fast" in elf
+          assert b"PPR FAST" in elf
+          assert b"1.1.1-beta.1" in elf
+          print(f"Verified TITAN CORE v1.1b: {len(elf):,} bytes")
+          PY
+      - name: Publish public v1.1b fast pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.1b --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v1.1b already published; not overwriting"
+            exit 1
+          fi
+          gh release create v1.1b \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_COMMIT" \
+            --title "TITAN CORE v1.1b (Fast Kstuff)" \
+            --notes-file RELEASE-v1.1b.md \
+            --prerelease \
+            TITAN-CORE.elf SHA256SUMS
+          gh release view v1.1b --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,url,assets
