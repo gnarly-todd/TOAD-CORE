@@ -21,9 +21,9 @@ Internal installed PKGs stay in their system path. External installation keeps y
 | **[ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus)** | `1.7beta12` | Bundled resident ELF |
 | **[AMPR-EMU-NG](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.1)** | `0.5.1` | Bundled official upstream SPRX |
 | **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `1.13-fpkg-dr-test8-rest-fast` | Bundled resident ELF (user-supplied) |
-| **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1)** | `0.3.1` | Selected upstream source changes; not a separate executable |
+| **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.2)** | `0.3.2` | Selected upstream source changes; not a separate executable |
 
-**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v0.3.1 source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
+**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v0.3.2 source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, batch registration on supported firmware, and (v0.3.2) selected exit-spawn, read-only system font, rest-mode web recovery and tile-registration fixes. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
 
 **Process identity:** `titan-core.elf` in the PS5 Active Processes list, as requested by the startup shim; actual display requires console confirmation. The downloadable executable remains `TITAN-CORE.elf` in the GitHub Actions `payload` artifact.
 
