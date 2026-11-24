@@ -12,7 +12,7 @@ use std::io::{self, ErrorKind};
 use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
 use std::ptr;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 const APP_BASE: &str = "/user/app";
 const SYSTEM_EX_APP: &str = "/system_ex/app";
@@ -344,10 +344,11 @@ fn install_title_dir(title_id: &str) -> io::Result<bool> {
     Err(err(format!("sceAppInstUtilAppInstallTitleDir({title_id}): {rc:#x}")))
 }
 
-/// Kraken Mount 0.3.1: register all titles staged during one scan pass
+/// Kraken Mount 0.3.1/0.3.2: register staged titles and the TITAN tile in one scan pass
 /// using one sceAppInstUtilAppInstallAll call. Do not call while a game runs.
 pub fn install_all(title_ids: &[String]) -> io::Result<()> {
-    if title_ids.is_empty() {
+    let tile = TILE_STAGED.lock().unwrap().take();
+    if title_ids.is_empty() && tile.is_none() {
         return Ok(());
     }
     extern "C" {
@@ -357,7 +358,14 @@ pub fn install_all(title_ids: &[String]) -> io::Result<()> {
     let rc = unsafe { sceAppInstUtilAppInstallAll(ptr::null_mut()) } as u32;
     log!("{}: sceAppInstUtilAppInstallAll: {rc:#x} ({} ms)",
         title_ids.join(", "), t.elapsed().as_millis());
-    if rc == 0 { Ok(()) } else { Err(err(format!("sceAppInstUtilAppInstallAll: {rc:#x}"))) }
+    if rc != 0 { return Err(err(format!("sceAppInstUtilAppInstallAll: {rc:#x}"))); }
+    if let Some(hash) = tile {
+        match fs::write(TILE_MARKER, format!("{hash}\n")) {
+            Ok(()) => log!("tile {TILE_ID}: registered by batch"),
+            Err(e) => log!("tile {TILE_ID}: registered but marker write failed: {e}"),
+        }
+    }
+    Ok(())
 }
 
 /// Preserve the original immediate-registration interface for one-off restore operations.
@@ -444,6 +452,9 @@ const TILE_ID: &str = "KRKN00001";
 /// hash of the last successful registration.
 const TILE_MARKER: &str = "/data/titan-core/tile.ok";
 const TILE_ICON: &[u8] = include_bytes!("../ps5/icon0.png");
+// FW 12+: tile registration waits for the same guarded batch as game titles.
+static TILE_STAGED: Mutex<Option<String>> = Mutex::new(None);
+pub fn tile_staged() -> bool { TILE_STAGED.lock().unwrap().is_some() }
 
 fn tile_param_json(port: u16) -> Vec<u8> {
     let param = serde_json::json!({
@@ -497,11 +508,17 @@ fn ensure_tile(port: u16) -> io::Result<String> {
             written.push(name);
         }
     }
-    if written.is_empty() && marker.as_deref() == Some(hash.as_str()) {
+    // Retain TITAN CORE's no-SQLite approach and ownership guard. A byte match is
+    // not proof that a database row is live; absence, however, requires registration.
+    let in_db = fs::read(APP_DB).ok().map(|db| db.windows(TILE_ID.len()).any(|w| w == TILE_ID.as_bytes()));
+    if written.is_empty() && marker.as_deref() == Some(hash.as_str()) && in_db != Some(false) {
         return Ok(format!("up to date (port {port})"));
     }
     ctx(fs::write(TILE_MARKER, "pending\n"), || format!("write {TILE_MARKER}"))?;
-    install_title_dir(TILE_ID)?;
+    if !install_title_dir(TILE_ID)? {
+        *TILE_STAGED.lock().unwrap() = Some(hash);
+        return Ok(format!("staged for next title batch, wrote {written:?}"));
+    }
     ctx(fs::write(TILE_MARKER, format!("{hash}\n")), || format!("write {TILE_MARKER}"))?;
     Ok(format!("registered, deeplink http://127.0.0.1:{port}/, wrote {written:?}"))
 }

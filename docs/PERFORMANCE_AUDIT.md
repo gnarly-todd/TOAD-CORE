@@ -68,3 +68,7 @@ A small host-side probe is included: run \`python3 review/bench-web.py http://PS
 ## Release policy
 
 The rollback baseline is published separately as the explicitly experimental v1.2-experimental prerelease; the stable v1.2 assets and main remain untouched. See [release notes](../RELEASE-v1.2-experimental.md). Retain Fast Kstuff as the production default until a new owner-supplied ELF is explicitly approved. Promote optimizations into \`main\` only after compiled artifact validation and hardware acceptance of game startup, USB replug, installation, saves and rest-mode behavior.
+
+## v1.3-experimental integration
+
+Stable v1.3's selected Kraken Mount 0.3.2 lifecycle, font, web recovery and tile registration fixes are merged into the earlier performance baseline. See [release notes](../RELEASE-v1.3-experimental.md). The failed custom AMPR runtime remains reverted. The earlier launch timing description is historical; v1.3 introduces the bounded exit-spawn grace and owned-mount cleanup behavior described in its release notes.

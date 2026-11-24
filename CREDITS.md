@@ -16,10 +16,10 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 
 | Component | Upstream | Role |
 |---|---|---|
-| Kraken Mount v0.3.1 | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1) | Pinned source archive, with selected scan, registration and configuration changes ported into TITAN CORE |
+| Kraken Mount v0.3.2 | [quer3q/kraken-mount](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.2) | Pinned source archive; selected lifecycle, web recovery, scan and registration changes ported into TITAN CORE |
 | dlc_emu 0.3 | [drakmor/dlc_emu](https://github.com/drakmor/dlc_emu/tree/0.3) | Bundled DLC emulator files copied from Kraken Mount v0.3.0 when needed |
 | pgo_stub 0.6 | [drakmor/pgo_stub](https://github.com/drakmor/pgo_stub/tree/0.6) | Bundled PlayGo emulator, added only where needed |
-| ampr-emu-ng 0.5.0 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.0) | Owner-supplied, upstream release-matching packed-game runtime; original 0.4.0 custom notice archived |
+| ampr-emu-ng 0.5.1 | [quer3q/ampr-emu-ng](https://github.com/quer3q/ampr-emu-ng/releases/tag/v0.5.1) | Owner-supplied, upstream release-matching packed-game runtime; original 0.4.0 custom notice archived |
 | kstuff 1.13-fpkg-dr-test8-rest-fast | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) (historical project reference) | User-supplied resident ELF; exact binary/source revision not verified |
 | ShadowMountPlus 1.7beta12 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | User-supplied resident ELF; exact binary/source revision not verified |
 | PS5 Dump Forge | [quer3q/ps5-dump-forge](https://github.com/quer3q/ps5-dump-forge) | Toolchain/workflow references and attributed sparse-format reader reference |
@@ -30,15 +30,17 @@ Thank you to **quer3q**, **EchoStretch**, **drakmor**, the **PS5 payload SDK con
 - Root license: GPL-3.0-or-later; see [LICENSE](LICENSE).
 - Existing dependency notices: [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
 - Current test service binary versions and hashes, retained third-party dependency source snapshots, component licenses and notices: [vendor/unified](vendor/unified). Exact matching source for the new test ELFs has not been verified.
-- Active AMPR 0.5.0 release binary and historical AMPR 0.4.0/custom notice source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [runtime provenance](vendor/ampr-emu-ng/TITAN_BRANDING.md).
-- Upstream Kraken Mount v0.3.1 and AMPR v0.5.0 source archives, commit IDs and released runtime checksums: [integration details](docs/KRAKEN_031_AMPR_050.md).
+- Active AMPR 0.5.1 release binary and historical AMPR 0.4.0/custom notice source: [vendor/ampr-emu-ng](vendor/ampr-emu-ng), including [runtime provenance](vendor/ampr-emu-ng/TITAN_BRANDING.md).
+- Current [Kraken Mount v0.3.2 provenance](vendor/kraken-mount/PROVENANCE.md) and [AMPR v0.5.1 provenance](vendor/ampr-emu-ng/UPSTREAM_V051.md); historical v0.3.1 and v0.5.0 integration: [integration details](docs/KRAKEN_031_AMPR_050.md).
 - Sparse-format port attribution and exact source reference: [vendor/format-reference](vendor/format-reference).
 - TITAN CORE artwork provenance: [docs/branding/PROVENANCE.md](docs/branding/PROVENANCE.md).
 
-The current bundled AMPR v0.5.0 is the upstream release binary. The old custom PLAY NO LIMIT launch-notice source remains archived for attribution, but is not the runtime that gets embedded. Upstream credits in source archives are preserved. Additional third-party code retains its own license terms; consult the included notices/source for each component.
+The current bundled AMPR v0.5.1 is the upstream release binary. The old custom PLAY NO LIMIT launch-notice source remains archived for attribution, but is not the runtime that gets embedded. Upstream credits in source archives are preserved. Additional third-party code retains its own license terms; consult the included notices/source for each component.
 
 ## Reader and decoder source references
 
 The renamed `crates/titan-core-pkg/src/layout.rs` is the existing layout reader previously named `kraken.rs`. It ports the upstream `VF/kraken_image.rs:728-1036` describe logic and `FP/mount.rs:35-283` block/layout logic. Its sparse handling references `vendor/ps5upload-fpkg/src/kraken_image.rs` (GPL-3.0-or-later). The decoder ports the Kraken block decoder vendored by ps5-dump-forge: `kraken.rs` (bit reader, arrays and LZ), `kraken/huff.rs` (Huffman helpers) and `kraken_image.rs::decode_described`. Neutral local names do not change the compression format or its authorship. AMPR codec-2 index encoding follows the upstream `ng/KRAKEN.md` contract.
 
 The superseded service binaries and their old release/source metadata were removed from the current TITAN CORE tree. Exact corresponding source for the user's replacement ELF builds remains unverified, and the upstream project authors retain their respective credits and licenses.
+
+Kraken Mount v0.3.2 selected ports: thanks to quer3q, xtrackkkz (#109), Zhuwenxue2002 (#119), and contributors to #110 and #120. See upstream source and release for full attribution.
