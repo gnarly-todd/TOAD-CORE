@@ -194,14 +194,23 @@ struct Plan {
 /// past the file's end is cut to the file; a compressed one is a full 256 KiB block decoded whole
 /// (CHUNK_COMPRESSED_FULL). `vol_size` is the page-rounded volume size.
 /// Whether the bundled runtime's pack format can represent this exact block grid.
-pub fn streamable(path:&str,size:u64,blocks:&[Chunk],vol_size:u64)->bool{plan(path,size,blocks,vol_size).is_ok()}
+pub fn streamable(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> bool {
+    visit_chunks(path, size, blocks, vol_size, |_, _| {}).is_ok()
+}
 
-fn plan(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> Result<Plan> {
+/// Validate/encode chunks without a temporary vector for the first-pass
+/// streamability check. The manifest writer collects the same descriptors.
+fn visit_chunks(
+    path: &str,
+    size: u64,
+    blocks: &[Chunk],
+    vol_size: u64,
+    mut emit: impl FnMut(u64, u32),
+) -> Result<()> {
     let fail = |at: u64, why: &str| bad(format!("{path}: block at pkg offset {at:#x}: {why}"));
     if blocks.len() as u64 != size.div_ceil(BLOCK) {
         return Err(bad(format!("{path}: {} blocks for {size} bytes, want 256 KiB blocks", blocks.len())));
     }
-    let mut out = Vec::with_capacity(blocks.len());
     for (i, c) in blocks.iter().enumerate() {
         let (at, want) = (c.pkg_off, BLOCK.min(size - i as u64 * BLOCK));
         let raw_len = u64::from(c.raw_len);
@@ -239,11 +248,15 @@ fn plan(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> Result<Plan> 
         // (upstream index documentation (see CREDITS.md)): the runtime reads the covering page window at any offset. Not marking
         // files STREAMING keeps ng's decoded cache on for them (caches.rs refuses STREAMING).
         flags |= if contained { CHUNK_PAGE_CONTAINED } else { 0 } | if aligned { CHUNK_PAGE_ALIGNED } else { 0 };
-        out.push((loc, (stored as u32 - 1) | codec << 20, flags));
+        emit(loc, (stored as u32 - 1) | (codec << 20) | (u32::from(flags) << 22));
     }
-    let chunks = out.into_iter().map(|(loc, d, f)| (loc, d | u32::from(f) << 22)).collect();
-    Ok(Plan { chunks, flags: FILE_PACKED })
+    Ok(())
 }
+
+fn plan(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> Result<Plan> {
+    let mut chunks = Vec::with_capacity(blocks.len());
+    visit_chunks(path, size, blocks, vol_size, |loc, desc| chunks.push((loc, desc)))?;
+    Ok(Plan { chunks, flags: FILE_PACKED })
 
 /// AMPRPAK4 image: 128-byte header, file records, chunk records, one pack record, strings
 /// (paths, then the volume name). `rows` pairs each sorted logical path with its file.
