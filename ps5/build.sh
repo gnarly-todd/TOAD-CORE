@@ -3,6 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Keep the owner-approved Fast Kstuff ELF in every production build.
+python3 review/verify-kstuff-fast-pin.py
+
 if [[ "${1:-}" != --inside ]]; then
   docker build -t titan-core-ps5 ps5
   exec docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
