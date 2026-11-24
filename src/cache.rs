@@ -79,10 +79,12 @@ fn vfs(e: titan_core_pkg::Error) -> Error {
     }
 }
 
-/// Files copied out of the pkg: sce_sys/**, eboot.bin, any *.prx / *.sprx.
+/// Files copied out of the pkg: sce_sys/**, eboot.bin, PRX/SPRX, and exit-spawn ELF files.
+/// Kraken Mount v0.3.2: SceSysCore loads secondary ELFs from disk, not the AMPR index.
 fn extracted(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     lower.starts_with("sce_sys/") || lower == "eboot.bin" || lower.ends_with(".prx") || lower.ends_with(".sprx")
+        || (lower.ends_with(".elf") && !lower.starts_with("decrypted/"))
 }
 
 fn open(pkg: &Path) -> Result<(Io, Pkg)> {
@@ -324,7 +326,8 @@ fn lib_dir(src: &Source) -> Option<PathBuf> {
 
 pub fn stamp(src: &Source, s: &Settings) -> serde_json::Value {
     serde_json::json!({
-        "v": 1,
+        // Bump only PKG caches: exit-spawned ELFs must be available loose on disk.
+        "v": if src.kind == Kind::Pkg { 2 } else { 1 },
         "kind": if src.kind == Kind::Pkg { "pkg" } else { "folder" },
         "source": src.path.to_string_lossy(),
         "size": src.size,
@@ -882,4 +885,18 @@ fn build_inner(src: &Source, s: &Settings, before: &HashSet<PathBuf>) -> Result<
     let files: Vec<IndexFile> = files.into_values().collect();
     ampr_index::write(&dir, &src.path, &files)?;
     finish(&dir, src, s, start, before)
+}
+
+
+#[cfg(test)]
+mod kraken_032_tests {
+    use super::extracted;
+    #[test]
+    fn extracts_secondary_elf_but_not_decrypted_dump() {
+        assert!(extracted("bin/next.elf"));
+        assert!(extracted("bin/NEXT.ELF"));
+        assert!(!extracted("decrypted/eboot.elf"));
+        assert!(!extracted("data/assets.bin"));
+        assert!(extracted("eboot.bin"));
+    }
 }

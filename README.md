@@ -2,13 +2,15 @@
 <h1 align="center">TITAN CORE</h1>
 <p align="center">A PS5 game workspace with a native FPKG engine, external-drive installer and live diagnostics.</p>
 
-## Version 1.2
+## Version 1.3
+
+Integrates selected [Kraken Mount v0.3.2](https://github.com/quer3q/kraken-mount/releases/tag/v0.3.2) lifecycle fixes: exit-spawn ELF extraction and cleanup, system fonts, rest-mode web listener recovery, guarded payload takeover and firmware 12+ tile batch registration. See [release notes](RELEASE-v1.3.md) for scope and limitations. The stable 1.2 and experimental builds remain separately available.
 
 **Kstuff pinning:** This and all subsequent builds use the user-supplied Fast Kstuff file kstuff1.13-fpkg-dr-test8-rest-fast.elf, SHA-256 221fa41c43597677c1153d5224174be9062105c0c9a3379e96cb45d278aa52fc, until you explicitly supply a replacement. Production build checks reject any different kstuff binary, including the non-fast test8-rest variant.
 
 Internal installed PKGs stay in their system path. External installation keeps your archive original, creates its game folder automatically, and shows the installed external package size separately from internal cache. Connecting a USB disk does not automatically mount raw installer PKGs. The current bundled AMPR runtime version is listed in the table below; the earlier PLAY NO LIMIT custom notice is retained only in historical source archives.
 
-**Known limit:** full external package size in PS5 System storage is not established. The v1.2 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
+**Known limit:** full external package size in PS5 System storage is not established. The v1.3 version number does not imply universal firmware/game compatibility or a new full hardware acceptance pass. See [release validation](docs/V1_0_VALIDATION.md).
 
 
 <!-- BEGIN GENERATED TITAN COMPONENTS: review/sync-component-readme.py -->

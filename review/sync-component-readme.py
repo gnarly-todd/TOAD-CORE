@@ -100,7 +100,7 @@ def render() -> str:
 | **[Kstuff Lite / FPKG](https://github.com/EchoStretch/kstuff-lite)** | `{kversion}` | Bundled resident ELF (user-supplied) |
 | **[Kraken Mount](https://github.com/quer3q/kraken-mount/releases/tag/v{kraken})** | `{kraken}` | Selected upstream source changes; not a separate executable |
 
-**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v{kraken} source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, and batch registration on supported firmware. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
+**Kraken Mount distinction:** TITAN CORE incorporates selected features from Kraken Mount v{kraken} source, including one-level nested game discovery, faster buffered metadata copying, per-title PlayGo stub exclusions via `playgo_off`, batch registration on supported firmware, and (v0.3.2) selected exit-spawn, read-only system font, rest-mode web recovery and tile-registration fixes. It does **not** bundle or launch a separate Kraken Mount executable or include every upstream feature. TITAN CORE keeps its own installer, original-path package handling, and ShadowMount coordination.
 
 **Process identity:** `{process_name}` in the PS5 Active Processes list, as requested by the startup shim; actual display requires console confirmation. The downloadable executable remains `TITAN-CORE.elf` in the GitHub Actions `payload` artifact.
 

@@ -12,6 +12,9 @@ use std::io;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+// Kraken Mount v0.3.2: read-only system fonts and a short exit-spawn grace period.
+const FONTS: &str = "/preinst/common/font";
+const EXIT_GRACE_MS: u64 = 3000;
 const SANDBOX_ROOT: &str = "/mnt/sandbox";
 /// Fast path: how long to wait for ShellCore's common/lib mount after the sandbox dir appears.
 const READY_WAIT_MS: u64 = 3000;
@@ -250,6 +253,8 @@ struct Session {
     pid: Option<libc::pid_t>,
     /// (deadline, next try) of a busy cleanup, in now_ms.
     cleanup: Option<(u64, u64)>,
+    // Keep an owned library overlay briefly while a same-title secondary ELF starts.
+    grace: Option<u64>,
 }
 
 impl Session {
@@ -260,7 +265,7 @@ impl Session {
         if has_files(&fakelib) {
             srcs.push(fakelib);
         }
-        Session { tid: tid.to_string(), lib: None, srcs, layers: Vec::new(), data: Vec::new(), pid: None, cleanup: None }
+        Session { tid: tid.to_string(), lib: None, srcs, layers: Vec::new(), data: Vec::new(), pid: None, cleanup: None, grace: None }
     }
 
     /// Index in `srcs` of our overlay on top of common/lib now, if one is.
@@ -330,6 +335,9 @@ impl Session {
         };
         for from in std::iter::once("/data".to_string()).chain(crate::storage::mounted_aliases()) {
             self.mount_dir(&format!("{}{from}", root.display()), &from, 0);
+        }
+        if std::path::Path::new(FONTS).is_dir() {
+            self.mount_dir(&format!("{}{FONTS}", root.display()), FONTS, libc::MNT_RDONLY as i32);
         }
         // Writable /app0 (the game's files: the dump folder, or the pkg cache), then the pkg's folder
         // at the runtime source mount (ng finds the .pkg there). Both on top of the system's /app0.
@@ -636,6 +644,18 @@ impl Watcher {
                     s.data.push((path.clone(), m.fsid));
                 }
             }
+            // Adopt only mounts matching the known source and sandbox path (upstream 0.3.2).
+            let font_path = format!("{root}{FONTS}");
+            for m in all.iter().filter(|m| m.on == font_path && m.fstype == "nullfs" && m.from == FONTS) {
+                s.data.push((font_path.clone(), m.fsid));
+            }
+            let pkg_dir = crate::cache::pkg_source(&tid).and_then(|p| std::path::Path::new(&p).parent().and_then(|d| d.to_str()).map(str::to_string));
+            if let Some(from) = pkg_dir {
+                let path = format!("{root}/app0/{}", crate::cache::PKG_MOUNT_DIR);
+                for m in all.iter().filter(|m| m.on == path && m.fstype == "nullfs" && m.from == from) {
+                    s.data.push((path.clone(), m.fsid));
+                }
+            }
             s.lib = Some(lib.clone());
             match find_title_pid(&tid) {
                 Some(pid) => {
@@ -675,7 +695,8 @@ impl Watcher {
         for name in gone {
             if let Some(s) = self.sessions.get_mut(&name) {
                 tlog!("{} sandbox gone: {name}", s.tid);
-                s.cleanup.get_or_insert((now_ms() + CLEANUP_TIMEOUT_MS, 0));
+                s.grace = None;
+                s.cleanup = Some((now_ms() + CLEANUP_TIMEOUT_MS, 0));
             }
         }
         for name in new {
@@ -798,6 +819,7 @@ impl Watcher {
         let top = s.top_layer();
         let on_top = top.is_some_and(|i| i + 1 == s.srcs.len());
         tlog!("{tid} exec pid={pid} sandbox={name}: overlay {}", if on_top { "already there" } else { "MISSING" });
+        s.grace = None;
         if s.cleanup.take().is_some() {
             tlog!("{tid} pending cleanup cancelled by exec");
         }
@@ -807,15 +829,19 @@ impl Watcher {
             // (mount_dir keeps the ones still in place).
             Some(lib) if on_top => s.mount_data(&lib),
             _ if s.srcs.is_empty() => tlog!("{tid} empty fakelib, nothing to overlay; not mounting"),
-            Some(_) if top.is_some() => {
-                s.mount(top.map_or(0, |i| i + 1), "exec fallback");
+            Some(lib) if top.is_some() => {
+                if !s.mount(top.map_or(0, |i| i + 1), "exec fallback") {
+                    s.mount_data(&lib);
+                }
             }
             Some(lib) => match top_mount(&lib) {
                 Ok(t) if t.on == lib && t.fstype == "unionfs" => {
                     tlog!("{tid} common/lib occupied by unionfs from {}; not mounting", t.from)
                 }
                 _ => {
-                    s.mount(0, "exec fallback");
+                    if !s.mount(0, "exec fallback") {
+                        s.mount_data(&lib);
+                    }
                 }
             },
         }
@@ -834,7 +860,18 @@ impl Watcher {
         self.pending.retain(|p| p.0 != pid);
         for (name, s) in self.sessions.iter_mut().filter(|(_, s)| s.pid == Some(pid)) {
             tlog!("{} exit pid={pid} sandbox={name}", s.tid);
-            s.cleanup.get_or_insert((now_ms() + CLEANUP_TIMEOUT_MS, 0));
+            // Owned nullfs layers otherwise block ShellCore teardown. Only the library overlay
+            // may survive a normal exit briefly so an exit-spawned ELF can reuse it.
+            let now = now_ms();
+            let wait = match s.unmount_data(0) {
+                None => EXIT_GRACE_MS,
+                Some(code) => {
+                    tlog!("{} sandbox mount busy on exit errno={code}; cleaning up now: {name}", s.tid);
+                    0
+                }
+            };
+            s.grace = (wait > 0).then_some(now + wait);
+            s.cleanup = Some((now + wait + CLEANUP_TIMEOUT_MS, now + wait.min(RETRY_MS)));
         }
     }
 
@@ -844,11 +881,19 @@ impl Watcher {
         let now = now_ms();
         let mut done = Vec::new();
         for (name, s) in self.sessions.iter_mut() {
-            let Some((deadline, next)) = s.cleanup else { continue };
+            let Some((mut deadline, next)) = s.cleanup else { continue };
             if now < next {
                 continue;
             }
-            let first = next == 0;
+            if let Some(end) = s.grace {
+                if now < end && s.top_layer().is_some() {
+                    s.cleanup = Some((deadline, now + RETRY_MS));
+                    continue;
+                }
+                s.grace = None;
+                deadline = now + CLEANUP_TIMEOUT_MS;
+            }
+            let first = deadline.saturating_sub(now) + RETRY_MS > CLEANUP_TIMEOUT_MS;
             match s.unmount_pass(false) {
                 None => {
                     tlog!("{} cleanup done: {name}", s.tid);

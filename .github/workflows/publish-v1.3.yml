@@ -1,0 +1,92 @@
+name: Build and publish stable TITAN CORE v1.3
+on:
+  push:
+    branches: [release/v1.3-kraken-032]
+    paths:
+      - .github/workflows/publish-v1.3.yml
+permissions:
+  contents: write
+concurrency:
+  group: titan-core-v1.3-publishing
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/release/v1.3-kraken-032'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUSTUP_TOOLCHAIN: 1.99.0
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify stable baseline and import pinned Kraken source
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = be94c9c164c89775d1129a916b15be7473187c0b
+          if gh release view v1.3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 1; fi
+          temp="$(mktemp -d)"
+          git clone --quiet --depth 1 --branch v0.3.2 https://github.com/quer3q/kraken-mount.git "$temp/kraken"
+          test "$(git -C "$temp/kraken" rev-parse HEAD)" = dbe78a7a7c8d3f2381247ca478fbef65f4c58b77
+          git -C "$temp/kraken" archive --format=tar.gz --prefix=kraken-mount-v0.3.2/ -o "$PWD/vendor/kraken-mount/upstream-v0.3.2.tar.gz" HEAD
+          rm -rf "$temp"
+          python3 review/sync-component-readme.py --write
+          python3 review/sync-component-readme.py --check
+          git diff --check
+      - name: Verify version and pinned components
+        run: |
+          grep -q '^version = "1.3.0"$' Cargo.toml
+          python3 review/verify-kstuff-fast-pin.py
+          python3 review/verify-unified-payloads.py
+          (cd vendor/ampr-emu-ng && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
+          echo '7ca61afc444f0b44d2f005506dde16cb43e74dae4b1e045323b291b8db1c3d5d  vendor/ampr-emu-ng/libSceAmpr.sprx' | sha256sum -c --strict
+      - name: FreeBSD compile check and UI syntax
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --target x86_64-unknown-freebsd
+          RUSTFLAGS=-Dwarnings cargo check --workspace --features unified-stack --locked --target x86_64-unknown-freebsd
+          sed -n '/^<script>$/,/^<\/script>$/p' src/ui.html | sed '1d;$d' > "$RUNNER_TEMP/ui.js"
+          test -s "$RUNNER_TEMP/ui.js"
+          node --check "$RUNNER_TEMP/ui.js"
+      - name: Build PS5 production ELF
+        run: TITAN_UNIFIED_STACK=1 bash ps5/build.sh
+      - name: Verify executable and checksum
+        run: |
+          cp target/ps5/titan-core.elf TITAN-CORE.elf
+          sha256sum TITAN-CORE.elf > SHA256SUMS
+          sha256sum -c --strict SHA256SUMS
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path("TITAN-CORE.elf").read_bytes()
+          assert b[:4]==b"\x7fELF"
+          for text in (b"1.3.0", b"titan-core.elf", b"ampr-emu-ng 0.5.1", b"1.13-fpkg-dr-test8-rest-fast", b"1.7beta12"):
+              assert text in b, f"Missing expected binary identity: {text!r}"
+          print(f"Verified TITAN CORE v1.3, {len(b):,} bytes")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TITAN-CORE-v1.3
+          path: |
+            TITAN-CORE.elf
+            SHA256SUMS
+          if-no-files-found: error
+      - name: Fast-forward main only after successful validation
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = be94c9c164c89775d1129a916b15be7473187c0b
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md vendor/kraken-mount/upstream-v0.3.2.tar.gz
+          git commit -m "Vendor verified Kraken Mount v0.3.2 source and synchronize README"
+          git push origin HEAD:refs/heads/release/v1.3-kraken-032
+          git push origin HEAD:refs/heads/main
+          echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Publish stable v1.3
+        run: |
+          set -euo pipefail
+          if gh release view v1.3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 1; fi
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = "$RELEASE_COMMIT"
+          gh release create v1.3 --repo "$GITHUB_REPOSITORY" --target "$RELEASE_COMMIT" --title "TITAN CORE v1.3 (Kraken Mount 0.3.2)" --notes-file RELEASE-v1.3.md --latest TITAN-CORE.elf SHA256SUMS
+          gh release view v1.3 --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,url,assets

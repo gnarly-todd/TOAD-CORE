@@ -1,8 +1,8 @@
 # Kraken Mount upstream source snapshot
 
-Official release: https://github.com/quer3q/kraken-mount/releases/tag/v0.3.1
-Pinned source commit: 387e665f6372e1a11ae834c52e6f77ce99b2012b
-Archive: upstream-v0.3.1.tar.gz, generated from git archive of the pinned source.
-This is a reference snapshot for porting selected fixes; it is not a second
-resident Kraken Mount payload. TITAN CORE's custom launcher, installer and
-package handling remain independent. Original GPL and author notices apply.
+Official release: https://github.com/quer3q/kraken-mount/releases/tag/v0.3.2
+Pinned source commit: dbe78a7a7c8d3f2381247ca478fbef65f4c58b77
+Archive: upstream-v0.3.2.tar.gz, generated from git archive of the pinned source.
+Selected fixes are ported into TITAN CORE, not a second resident Kraken Mount payload.
+Original GPL and author notices apply. Historical v0.3.1 source archive remains retained.
+See RELEASE-v1.3.md for actual integration scope.

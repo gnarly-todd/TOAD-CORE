@@ -149,10 +149,11 @@ pub fn take_port() -> Option<TcpListener> {
     if let Ok(l) = TcpListener::bind(("0.0.0.0", PORT)) {
         return Some(l);
     }
-    if let Ok(mut s) = TcpStream::connect(("127.0.0.1", PORT)) {
-        let _ = s.write_all(b"POST /api/quit HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n");
-    }
     for _ in 0..20 {
+        if let Ok(mut s) = TcpStream::connect(("127.0.0.1", PORT)) {
+            let _ = s.set_write_timeout(Some(Duration::from_millis(200)));
+            let _ = s.write_all(b"POST /api/quit HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n");
+        }
         std::thread::sleep(Duration::from_millis(250));
         if let Ok(l) = TcpListener::bind(("0.0.0.0", PORT)) {
             return Some(l);
@@ -163,14 +164,53 @@ pub fn take_port() -> Option<TcpListener> {
 
 /// Listens on 0.0.0.0:PORT forever, one short-lived thread per connection. Once bound, registers
 /// the home-screen tile that opens the UI (once, in its own thread).
-pub fn serve(state: Arc<State>, listener: TcpListener) {
+pub fn serve(state: Arc<State>, mut listener: TcpListener) {
     log!("web UI on port {PORT}");
     std::thread::spawn(|| crate::register::register_tile(PORT));
-    for conn in listener.incoming().flatten() {
-        let state = state.clone();
-        std::thread::spawn(move || {
-            let _ = handle(&state, conn);
-        });
+    loop {
+        match listener.accept() {
+            Ok((conn, _)) => {
+                let state = state.clone();
+                std::thread::spawn(move || { let _ = handle(&state, conn); });
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                // Kraken Mount 0.3.2 #110: a rest-mode wake may invalidate the listener.
+                log!("web: accept failed on {PORT}: {e}; rebinding");
+                drop(listener);
+                listener = rebind(&state);
+                log!("web UI on port {PORT} again");
+            }
+        }
+    }
+}
+
+fn rebind(state: &State) -> TcpListener {
+    let mut logged = false;
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+        match TcpListener::bind(("0.0.0.0", PORT)) {
+            Ok(l) => return l,
+            Err(e) => {
+                // An older copy must not exit mid-install, mid-scan or while a game runs.
+                if e.kind() == std::io::ErrorKind::AddrInUse && !state.installer.active() && !state.paused() {
+                    if let Ok(_work) = state.work.try_lock() {
+                        #[cfg(feature="unified-stack")]
+                        let starting = matches!(state.stack.services()["phase"].as_str(), Some("checking" | "starting" | "waiting"));
+                        #[cfg(not(feature="unified-stack"))]
+                        let starting = false;
+                        if !starting && !state.paused() && !state.installer.active() {
+                            log!("web: port {PORT} taken by another copy; exiting");
+                            std::process::exit(0);
+                        }
+                    }
+                }
+                if !logged {
+                    logged = true;
+                    log!("web: rebind port {PORT} failed: {e}; retrying");
+                }
+            }
+        }
     }
 }
 
@@ -324,6 +364,14 @@ fn route(state: &State, head: &str, body: &[u8], loopback: bool) -> Reply {
         }
         ("POST", "/api/quit") if loopback || body == b"shutdown" => {
             let user = body == b"shutdown";
+            let Ok(work) = state.work.try_lock() else {
+                return reply(409, "text/plain", "a scan or build is in progress");
+            };
+            if state.paused() || state.installer.active() {
+                return reply(409, "text/plain", "a game or installation is running");
+            }
+            // Keep the work guard until the process exits; do not start another build.
+            std::mem::forget(work);
             let toast = user && state.settings.lock().unwrap().notify;
             log!("{}", if user { "shut down from the web UI" } else { "quit requested by a newer copy" });
             std::thread::spawn(move || {

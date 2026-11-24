@@ -481,7 +481,7 @@ fn main() {
         }
         // Batch only when no game is running. If interrupted, staged titles
         // remain on disk and are naturally retried on the next scan pass.
-        if !staged.is_empty() && !state.paused() {
+        if (!staged.is_empty() || register::tile_staged()) && !state.paused() {
             let titles: Vec<String> = staged.iter().map(|src| src.title_id.clone()).collect();
             let result = register::install_all(&titles);
             let mut completed = 0usize;
