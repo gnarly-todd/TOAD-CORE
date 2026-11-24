@@ -1,6 +1,6 @@
 //! Native FPKG data stays authoritative; exFAT discovery never mounts/writes an image.
 use serde_json::{json,Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path,PathBuf};
 
 pub fn installed_package_path(path:&Path)->bool{
@@ -41,35 +41,72 @@ pub fn shadow_owns(games:&[Value],tid:&str)->bool{
     games.iter().any(|g|g["title_id"]==tid && matches!(g["kind"].as_str(),Some("image"|"folder")))
 }
 /// Keep native FPKGs visible. Merge sources by path, never discard matching-title images.
+/// Merge source inventory without repeatedly searching full engine and native
+/// lists for every game on each /api/state poll. Hash indexes preserve the
+/// original first-match semantics for duplicate title/path combinations.
 pub fn merge(native:Vec<Value>,images:Vec<Value>,engine:Vec<Value>,_legacy_image_mode:bool)->Vec<Value>{
     let mut out=native;
+    let shadow_titles:HashSet<&str>=engine.iter()
+        .filter(|g|matches!(g["kind"].as_str(),Some("image"|"folder")))
+        .filter_map(|g|g["title_id"].as_str()).collect();
+    let mut remote_by_key:HashMap<(&str,&str),&Value>=HashMap::new();
+    for g in &engine {
+        if let (Some(tid),Some(path))=(g["title_id"].as_str(),g["path"].as_str()) {
+            remote_by_key.entry((tid,path)).or_insert(g);
+        }
+    }
     for game in &mut out {
         game["engine"]=json!("native");
         let tid=game["title_id"].as_str().unwrap_or("");
-        if shadow_owns(&engine,tid){
-            if let Some(remote)=engine.iter().find(|g|g["title_id"]==tid && g["path"]==game["path"]){
-                let mut delegated=remote.clone();delegated["engine"]=json!("shadowmountplus");*game=delegated;
-            }else{game["status"]=json!("shadow_owned");game["managed_by"]=json!("shadowmountplus");}
+        if shadow_titles.contains(tid) {
+            let path=game["path"].as_str().unwrap_or("");
+            if let Some(remote)=remote_by_key.get(&(tid,path)){
+                let mut delegated=(*remote).clone();
+                delegated["engine"]=json!("shadowmountplus");
+                *game=delegated;
+            }else{
+                game["status"]=json!("shadow_owned");
+                game["managed_by"]=json!("shadowmountplus");
+            }
         }
     }
+    let mut out_by_path:HashMap<String,usize>=HashMap::new();
+    for (i,g) in out.iter().enumerate(){
+        if let Some(path)=g["path"].as_str(){out_by_path.entry(path.to_owned()).or_insert(i);}
+    }
     let mut by_path=std::collections::BTreeMap::new();
-    for game in images {if let Some(path)=game["path"].as_str(){by_path.insert(path.to_string(),game);}}
+    for game in images{if let Some(path)=game["path"].as_str(){by_path.insert(path.to_string(),game);}}
     for mut game in engine {
-        if !matches!(game["kind"].as_str(),Some("image"|"folder")) && !(game["kind"]=="pkg" && game["installed_pkg"]==true && game["installed"]==true){continue}
+        if !matches!(game["kind"].as_str(),Some("image"|"folder"))
+            && !(game["kind"]=="pkg" && game["installed_pkg"]==true && game["installed"]==true){continue}
         if let Some(path)=game["path"].as_str().map(String::from){
-            if let Some(existing)=out.iter_mut().find(|g|g["path"]==path){
-                if game["installed_pkg"]==true && existing["native_installed"]!=true {game["source_id"]=json!(format!("installed-{}",image_id(Path::new(&path))));game["engine"]=json!("shadowmountplus");*existing=game;}
+            if let Some(&idx)=out_by_path.get(&path){
+                let existing=&mut out[idx];
+                if game["installed_pkg"]==true && existing["native_installed"]!=true {
+                    game["source_id"]=json!(format!("installed-{}",image_id(Path::new(&path))));
+                    game["engine"]=json!("shadowmountplus");
+                    *existing=game;
+                }
                 continue;
             }
             if game["installed_pkg"]==true && game["status"]!="error"{
                 game["status"]=json!("preparation_pending");
-                if let Some(native)=out.iter().find(|n|n["engine"]=="native" && n["title_id"]==game["title_id"]){game["status"]=native["status"].clone();game["launch_source"]=native["path"].clone();}
+                if let Some(native)=out.iter().find(|n|n["engine"]=="native" && n["title_id"]==game["title_id"]){
+                    game["status"]=native["status"].clone();
+                    game["launch_source"]=native["path"].clone();
+                }
             }
-            game["source_id"]=json!(if game["installed_pkg"]==true {format!("installed-{}",image_id(Path::new(&path)))}else{image_id(Path::new(&path))});game["engine"]=json!("shadowmountplus");
+            game["source_id"]=json!(if game["installed_pkg"]==true {
+                format!("installed-{}",image_id(Path::new(&path)))
+            }else{
+                image_id(Path::new(&path))
+            });
+            game["engine"]=json!("shadowmountplus");
             by_path.insert(path,game);
         }
     }
-    out.extend(by_path.into_values());out
+    out.extend(by_path.into_values());
+    out
 }
 
 #[cfg(test)]mod tests{

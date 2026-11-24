@@ -3,13 +3,14 @@
 use crate::config::{self, Settings};
 use crate::scan::{Kind, Packing, Source};
 use crate::{cache, register, storage, sys};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::Duration;
 
 pub const PORT: u16 = 8097;
@@ -115,7 +116,7 @@ impl State {
     }
 }
 
-fn game_json(g: &Game, external_installs: &[PathBuf]) -> serde_json::Value {
+fn game_json(g: &Game, external_installs: &HashSet<PathBuf>) -> serde_json::Value {
     let (kind, packing) = match g.src.kind {
         Kind::Pkg => ("pkg", None),
         Kind::Folder(Packing::Plain) => ("folder", Some("plain")),
@@ -177,25 +178,36 @@ pub fn serve(state: Arc<State>, listener: TcpListener) {
 struct Reply {
     code: u16,
     ctype: &'static str,
-    body: Vec<u8>,
+    body: Cow<'static, [u8]>,
     /// "no-cache" for what the browser's AppCache keeps (page, manifest, images), else "no-store".
     cache: &'static str,
 }
 
 fn reply(code: u16, ctype: &'static str, body: impl Into<Vec<u8>>) -> Reply {
-    Reply { code, ctype, body: body.into(), cache: "no-store" }
+    Reply { code, ctype, body: Cow::Owned(body.into()), cache: "no-store" }
 }
 
-/// For the AppCache: revalidated on every load, so a new payload's page replaces the kept one.
-fn cached(ctype: &'static str, body: impl Into<Vec<u8>>) -> Reply {
-    Reply { cache: "no-cache", ..reply(200, ctype, body) }
+/// The page and appcache are immutable in one payload version. Render/hash them
+/// once and borrow static bytes for each HTTP response, rather than allocating
+/// and copying a megabyte of HTML on every console browser navigation.
+fn versioned_ui() -> &'static [u8] {
+    static HTML: OnceLock<Vec<u8>> = OnceLock::new();
+    HTML.get_or_init(|| UI.replace("__VERSION__", env!("CARGO_PKG_VERSION")).into_bytes()).as_slice()
 }
 
-/// The AppCache manifest: the tile's page opens offline (no payload yet) and starts the saved ELF.
-/// Its comment changes with the version and the page, so a new build's page is fetched again.
-fn appcache() -> String {
-    let hash = UI.bytes().fold(0xcbf29ce484222325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100000001b3));
-    format!("CACHE MANIFEST\n# {} {hash:016x}\nCACHE:\n/\n/app-icon.png\n/bg.jpg\nNETWORK:\n*\n", env!("CARGO_PKG_VERSION"))
+/// AppCache's static page/assets can be sent without allocating a response copy.
+fn cached(ctype: &'static str, body: &'static [u8]) -> Reply {
+    Reply { code: 200, ctype, body: Cow::Borrowed(body), cache: "no-cache" }
+}
+
+/// The AppCache manifest changes when the version or embedded HTML changes, and
+/// is intentionally revalidated by the browser on every open.
+fn appcache() -> &'static [u8] {
+    static MANIFEST: OnceLock<Vec<u8>> = OnceLock::new();
+    MANIFEST.get_or_init(|| {
+        let hash = UI.bytes().fold(0xcbf29ce484222325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100000001b3));
+        format!("CACHE MANIFEST\n# {} {hash:016x}\nCACHE:\n/\n/app-icon.png\n/bg.jpg\nNETWORK:\n*\n", env!("CARGO_PKG_VERSION")).into_bytes()
+    }).as_slice()
 }
 
 fn no_content() -> Reply {
@@ -305,7 +317,7 @@ fn route(state: &State, head: &str, body: &[u8], loopback: bool) -> Reply {
     }
     if method=="POST"&&path=="/api/quit"&&state.installer.active(){return reply(409,"text/plain","Cancel or finish the installation before stopping TITAN");}
     match (method, path) {
-        ("GET", "/") => cached("text/html; charset=utf-8", UI.replace("__VERSION__", env!("CARGO_PKG_VERSION"))),
+        ("GET", "/") => cached("text/html; charset=utf-8", versioned_ui()),
         ("GET", "/titan.appcache" | "/kraken.appcache") => cached("text/cache-manifest", appcache()),
         ("GET", "/app-icon.png") => cached("image/png", APP_ICON),
         ("GET", "/bg.jpg") => cached("image/jpeg", BG),
@@ -418,7 +430,7 @@ fn dbg_file(path: &str, query: &str) -> Reply {
 }
 
 fn api_state(state: &State) -> Vec<u8> {
-    let external_installs = crate::installer::external_installs();
+    let external_installs: HashSet<PathBuf> = crate::installer::external_installs().into_iter().collect();
     let games: Vec<_> = state.games.lock().unwrap().iter().map(|g|game_json(g,&external_installs)).collect();
     let all = storage::drives();
     let drives: Vec<_> = all
@@ -691,4 +703,23 @@ fn hybrid_route(state:&State,method:&str,path:&str,body:&[u8])->Option<Reply>{
         }
     }
     None
+}
+
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+
+    #[test]
+    fn static_page_and_manifest_are_shared_between_requests() {
+        let first = versioned_ui();
+        let next = versioned_ui();
+        assert_eq!(first.as_ptr(), next.as_ptr());
+        assert!(std::str::from_utf8(first).unwrap().contains(env!("CARGO_PKG_VERSION")));
+        assert!(!std::str::from_utf8(first).unwrap().contains("__VERSION__"));
+        let response = cached("text/html", first);
+        assert!(matches!(response.body, Cow::Borrowed(_)));
+        assert_eq!(appcache().as_ptr(), appcache().as_ptr());
+        assert!(std::str::from_utf8(appcache()).unwrap().contains(env!("CARGO_PKG_VERSION")));
+    }
 }
