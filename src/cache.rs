@@ -262,8 +262,24 @@ pub fn built_at(tid: &str) -> Option<u64> {
     fs::metadata(dir(tid).join(DONE)).and_then(|m| m.modified()).ok().map(secs)
 }
 
+/// Stream disk usage without holding a metadata entry for every descendant in RAM.
+/// As with walk(), do not follow symlinks or treat a missing directory as an error.
 pub fn du(path: &Path) -> u64 {
-    walk(path).iter().filter(|(_, m)| m.is_file()).map(|(_, m)| m.len()).sum()
+    let mut bytes = 0u64;
+    let mut pending = vec![path.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(meta) = fs::symlink_metadata(&path) else { continue };
+            if meta.is_dir() {
+                pending.push(path);
+            } else if meta.is_file() {
+                bytes = bytes.saturating_add(meta.len());
+            }
+        }
+    }
+    bytes
 }
 
 pub fn size(tid: &str) -> u64 {
@@ -335,30 +351,37 @@ pub fn stamp(src: &Source, s: &Settings) -> serde_json::Value {
     })
 }
 
-/// Existing paths whose mtime must be older than `.done`. The ampr dir is not one: launch mounts it.
-pub fn inputs(src: &Source, _s: &Settings) -> Vec<PathBuf> {
+/// Existing paths whose mtime must be older than `.done`. Carry metadata
+/// returned by the directory walk instead of issuing a second stat per entry.
+fn inputs_meta(src: &Source, _s: &Settings) -> Vec<(PathBuf, Option<fs::Metadata>)> {
     let mut v = Vec::new();
     match src.kind {
         Kind::Pkg => {
-            v.push(src.path.clone());
+            v.push((src.path.clone(), fs::symlink_metadata(&src.path).ok()));
             // The whole backport is copied into a pkg cache.
             if let Some(b) = &src.backport {
-                v.push(b.clone());
-                v.extend(walk(b).into_iter().map(|e| e.0));
+                v.push((b.clone(), fs::symlink_metadata(b).ok()));
+                v.extend(walk(b).into_iter().map(|(p, m)| (p, Some(m))));
             }
         }
-        // ponytail: only the lib dir of a folder's backport feeds its cache; the rest is a live unionfs.
-        // Not the game folder itself: the game writes there (/app0 is writable), which must not rebuild.
+        // Only the lib dir of a folder's backport feeds its cache. The game
+        // writes to its own /app0, which must not trigger rebuilds.
         Kind::Folder(_) => {
-            v.extend([src.path.join("eboot.bin"), src.path.join("sce_sys/param.json")]);
-            v.retain(|p| p.exists());
+            for p in [src.path.join("eboot.bin"), src.path.join("sce_sys/param.json")] {
+                if p.exists() { v.push((p.clone(), fs::symlink_metadata(p).ok())); }
+            }
             if let Some(lib) = lib_dir(src) {
-                v.extend(walk(&lib).into_iter().map(|e| e.0));
-                v.push(lib);
+                v.extend(walk(&lib).into_iter().map(|(p, m)| (p, Some(m))));
+                v.push((lib.clone(), fs::symlink_metadata(lib).ok()));
             }
         }
     }
     v
+}
+
+/// Failure-fingerprint callers need paths; healthy cache checks use metadata above.
+pub fn inputs(src: &Source, s: &Settings) -> Vec<PathBuf> {
+    inputs_meta(src, s).into_iter().map(|(p, _)| p).collect()
 }
 
 pub enum Fresh {
@@ -601,13 +624,19 @@ pub fn check(src: &Source, s: &Settings) -> Fresh {
         }
     }
     // A cache built before the runtime package descriptor existed (or with it deleted): ng could not find the pkg.
-    if src.kind == Kind::Pkg && !dir(&src.title_id).join(IMAGE_FILE).is_file() {
-        return Fresh::Stale(format!("{IMAGE_FILE} missing"));
+    if src.kind == Kind::Pkg {
+        if !dir(&src.title_id).join(IMAGE_FILE).is_file() {
+            return Fresh::Stale(format!("{IMAGE_FILE} missing"));
+        }
+        // A truncated or missing generated index leaves .done looking valid but
+        // fails only when the game tries to load it. Cheap header checks suffice.
+        if !ampr_index::outputs_present(&dir(&src.title_id)) {
+            return Fresh::Stale("AMPR indexes missing or invalid".into());
+        }
     }
-    // ponytail: an input with a future mtime (wrong clock on the PC that wrote the USB) rebuilds every scan.
-    for p in inputs(src, s) {
-        // inputs() lists existing paths only, and the stamp records the lib dir used, so a missing one is a removal.
-        let Ok(m) = fs::symlink_metadata(&p).and_then(|m| m.modified()) else {
+    // Future mtimes still trigger a rebuild, matching the original semantics.
+    for (p, meta) in inputs_meta(src, s) {
+        let Some(m) = meta.and_then(|m| m.modified().ok()) else {
             return Fresh::Stale(format!("{} missing", p.display()));
         };
         if m >= done_mtime {
