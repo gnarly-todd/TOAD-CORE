@@ -75,7 +75,7 @@ The verified rename-based restoration replaces the earlier unsupported hard-link
 
 This TITAN CORE fork bundles the upstream AMPR version shown above, the DLC emulator 0.3, and PlayGo stub 0.6. The native cache code incorporates Kraken's normal-game save-module exclusion, mandatory AMPR for PKG sources, conditional emulators, and preservation of newer game-supplied AMPR. The current Kraken source port also adopts one-level nested scan folders, faster 1 MiB buffered registration metadata copies, a per-title `playgo_off` setting, resilient configuration-array parsing, and batch home-screen registration when the FW12+ per-title install API is unavailable. **This is a selective source port, not a full merge of the upstream application.** Unported features include Kraken's per-game PlayGo interface control, title sound/localization, auto-removal of missing games, and USB unmount. The TITAN installer, original-path package handling, and ShadowMount coordination remain independently maintained. Full console testing is still required. The custom TITAN installer, original-path installations, and ShadowMount coordination remain unchanged.
 
-For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_051.md). The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
+For the exact source tags, pinned release hashes and current integration limits, see [upstream integration details](docs/KRAKEN_031_AMPR_051.md). The experimental AMPR performance review and PS5 measurement plan are in [AMPR performance review](docs/AMPR_PERFORMANCE_REVIEW.md) on the performance branch. The complete upstream sources are archived under `vendor/kraken-mount/` and `vendor/ampr-emu-ng/`. These are attribution/reference archives, not additional resident payloads.
 
 ## Features
 
@@ -139,7 +139,7 @@ The build verifies bundled runtime/service hashes and builds both ELF stages. Th
 
 ## License and credits
 
-GPL-3.0-or-later. TITAN CORE is a derivative/aggregate project, with original authorship and upstream notices retained. The bundled runtime is now the upstream ampr-emu-ng v0.4.1 binary (the previous custom AMPR 0.4.0 PLAY NO LIMIT branding remains historical only). Bundled component source snapshots, modified runtime source and notices are included under `vendor/`.
+GPL-3.0-or-later. TITAN CORE is a derivative/aggregate project, with original authorship and upstream notices retained. The bundled runtime is the verified upstream ampr-emu-ng v0.5.1 binary (the previous custom AMPR 0.4.0 PLAY NO LIMIT branding remains historical only). Bundled component source snapshots, modified runtime source and notices are included under `vendor/`.
 
 See [CREDITS.md](CREDITS.md), [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
 
