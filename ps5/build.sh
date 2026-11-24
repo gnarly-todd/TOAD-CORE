@@ -26,6 +26,14 @@ if [[ "${TITAN_UNIFIED_STACK:-0}" == 1 ]]; then
   (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
   features=(--features unified-stack)
 fi
+if [[ "${TITAN_EXPERIMENTAL_AMPR:-0}" == 1 ]]; then
+  # Deliberate opt-in: official vendored AMPR remains hash-verified above.
+  test -s target/ps5/libSceAmpr-experimental.sprx || {
+    echo "Missing separately built experimental AMPR SPRX" >&2
+    exit 1
+  }
+  features+=(--features experimental-ampr)
+fi
 out=target/ps5
 cc="$PS5_PAYLOAD_SDK/bin/prospero-clang"
 mkdir -p "$out/shim"
