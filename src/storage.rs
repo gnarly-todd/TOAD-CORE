@@ -25,6 +25,13 @@ fn on_name(fs: &libc::statfs) -> String {
     String::from_utf8_lossy(&b).into_owned()
 }
 
+/// Internal SSD free bytes without re-probing all USB and extended mounts.
+/// Failure is exposed as None so callers can apply their existing policy.
+pub fn data_free_bytes() -> Option<u64> {
+    let fs = statfs("/data")?;
+    Some(fs.f_bavail.max(0) as u64 * fs.f_bsize as u64)
+}
+
 /// A statfs that reports `path` itself as the mount point (an empty /mnt/usbN reports /mnt).
 fn mounted(path: &str) -> Option<libc::statfs> {
     statfs(path).filter(|fs| on_name(fs) == path)

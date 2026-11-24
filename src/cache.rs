@@ -841,7 +841,7 @@ fn build_inner(src: &Source, s: &Settings, before: &HashSet<PathBuf>) -> Result<
                     _=>{
                         // Sparse, unaligned and smaller-block files cannot be represented by
                         // the bundled AMPR grid. Decode those files once into the derived cache.
-                        let free=crate::storage::drives().into_iter().find(|d|d.mount=="/data").map(|d|d.free).unwrap_or(0);
+                        let free=crate::storage::data_free_bytes().unwrap_or(0);
                         if e.size>free.saturating_sub(256<<20){return Err(Error::new(ErrorKind::StorageFull,format!("Insufficient cache space for {} ({} bytes)",e.path,e.size)));}
                         log!("{}: caching {} loose for block-layout compatibility ({} bytes)",src.title_id,e.path,e.size);
                         extract(p,io,&e,&dir.join(e.path),&mut buf)?;None

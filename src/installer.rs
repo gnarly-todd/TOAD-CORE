@@ -39,7 +39,7 @@ impl Installer{
   let dest=Destination::resolve(&request.destination)?;self.check(state,&dest)?;
   let source=external(&path,false)?;let meta=fs::metadata(&source)?;let size=meta.len();let(tid,name,_)=crate::cache::peek_pkg(&source)?;
   if !tid.starts_with("PPSA")||!crate::scan::valid_tid(&tid){return Err(io::Error::other("Only supported PS5 debug PKGs can be installed"));}
-  if dest.external&&crate::storage::drives().iter().find(|d|d.mount=="/data").map_or(0,|d|d.free)<RESERVE{return Err(io::Error::other("Internal storage needs free space for the game cache"));}
+  if dest.external&&crate::storage::data_free_bytes().unwrap_or(0)<RESERVE{return Err(io::Error::other("Internal storage needs free space for the game cache"));}
   let needed=size.saturating_add(RESERVE);
   if dest.free<needed{return Err(io::Error::other("Not enough destination storage for PKG and working reserve"));}
   if state.games.lock().unwrap().iter().any(|g|g.src.title_id==tid&&(g.src.drive=="/data"||(dest.external&&g.src.path!=source))){return Err(io::Error::other("This title already has another library source; nothing was overwritten"));}

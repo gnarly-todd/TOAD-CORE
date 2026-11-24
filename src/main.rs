@@ -64,7 +64,7 @@ fn inputs_key(src: &Source, s: &Settings) -> String {
 /// Low /data space: the UI banner, and a toast once per run. Checked before and after builds.
 fn check_space(state: &State, s: &Settings) {
     static WARNED: AtomicBool = AtomicBool::new(false);
-    let free = storage::drives().into_iter().find(|d| d.mount == "/data").map_or(u64::MAX, |d| d.free);
+    let free = storage::data_free_bytes().unwrap_or(0);
     let low = free < s.low_space_gb << 30;
     state.low_space.store(low, Ordering::SeqCst);
     if low && !WARNED.swap(true, Ordering::SeqCst) {
@@ -85,7 +85,7 @@ enum Registration { Existing, New, Staged }
 /// Builds when stale or forced, then registers (or stages a FW12+ batch title).
 fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, forced: bool) -> std::io::Result<Registration> {
     let tid = &src.title_id;
-    if library::installed_package_path(&src.path){backup::installed(tid, storage::drives().into_iter().find(|d| d.mount == "/data").map_or(0, |d| d.free))?;}
+    if library::installed_package_path(&src.path){backup::installed(tid, storage::data_free_bytes().unwrap_or(0))?;}
     if let (false, Fresh::Fakelib(why)) = (forced, fresh) {
         // Only fakelib/ is behind: recompose it, then go on as a fresh cache (mount or register).
         log!("{tid}: {why}; refreshing fakelib only");
@@ -447,7 +447,7 @@ fn main() {
                 let path=PathBuf::from(g["path"].as_str().unwrap());let tid=g["title_id"].as_str().unwrap();
                 let prepared=(||->Result<scan::Source,String>{
                     let mut src=scan::installed_source(&path,tid).map_err(|e|e.to_string())?;
-                    backup::installed(tid, storage::drives().into_iter().find(|d| d.mount == "/data").map_or(0, |d| d.free)).map_err(|e|e.to_string())?;
+                    backup::installed(tid, storage::data_free_bytes().unwrap_or(0)).map_err(|e|e.to_string())?;
                     if state.paused(){return Err("A game started; installed package preparation deferred".into());}
                     state.stack.prepare_import_overlay(tid)?;
                     if state.paused(){return Err("A game started; in-place access preparation deferred".into());}
