@@ -24,6 +24,8 @@
 | Library merge (\`src/library.rs\`) | API polls repeatedly scanned the ShadowMount list to establish title ownership and find matching paths | Index ShadowMount titles and \`(title_id,path)\` once per merge; index native output by path | Fewer comparisons as game count increases |
 | External-install lookups (\`src/web.rs\`) | \`game_json()\` performed vector \`contains()\` for each source in every \`/api/state\` response | Build a hash set once per response | Cheaper library serialization |
 | Diagnostics (\`src/main.rs\`) | No direct discovery/cache-build timing in the usual runtime log | When debug is enabled, log discovery elapsed milliseconds and each cache build elapsed milliseconds | Enables actual before/after measurement on PS5 without default log churn |
+| Native ownership refresh (\`src/stack.rs\`) | Every 2-second ShadowMount snapshot rechecked all remote games for each native title | Compute a set of remote image/folder owners once per snapshot | Reduces repeated inventory comparisons |
+| Launch watcher pending execs (\`src/launch.rs\`) | Every 10 ms pending-PID poll cloned the entire configured title set even if no PID had resolved | Only materialize the title set when at least one PID resolves | Lower CPU overhead while waiting for executable title identification without changing polling timing |
 
 ### Preserved behavior
 
@@ -59,6 +61,8 @@ GitHub Actions must pass both the FreeBSD \`cargo check --workspace --features u
 - Exit and rest mode: no missed fakelib mounts, status regressions or stale app0 paths; verify save/load in multiple games.
 
 Enable TITAN CORE debug logging for \`perf: native discovery\` and \`perf: cache build\` messages, and inspect existing \`[launch ...]\` timings and \`titan-core.log\`. Report actual timings before claiming percentage improvements or merging this branch.
+
+A small host-side probe is included: run \`python3 review/bench-web.py http://PS5-IP:8097\` on a PC in the same network. It records median/p95 wall-clock latency and bytes read for the dashboard HTML and JSON state endpoints. **This probes web/API responsiveness, not game launch-to-first-frame latency.**
 
 ## Release policy
 
