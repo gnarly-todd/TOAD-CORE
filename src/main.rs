@@ -476,7 +476,7 @@ fn main() {
         publish(&state, &r);
         // A source that left the scan (USB unplugged) goes through register::mount again when back.
         let available: HashSet<&str> = r.games.iter().map(|g| g.title_id.as_str()).collect();
-        registered.retain(|t| available.contains(t.as_str()));
+        registered.retain(|t: &String| available.contains(t.as_str()));
         // Built caches are overlaid at launch from the start, not only once the scan reaches them.
         check_space(&state, &s);
         let mut staged = Vec::new();
