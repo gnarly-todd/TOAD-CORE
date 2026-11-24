@@ -9,7 +9,9 @@ python3 review/verify-kstuff-fast-pin.py
 if [[ "${1:-}" != --inside ]]; then
   docker build -t titan-core-ps5 ps5
   exec docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
-    -e CARGO_BUILD_JOBS=2 -e TITAN_UNIFIED_STACK="${TITAN_UNIFIED_STACK:-0}" -e CARGO_HOME=/work/target/ps5/cargo -v "$PWD:/work" titan-core-ps5 bash ps5/build.sh --inside
+    -e CARGO_BUILD_JOBS=2 -e TITAN_UNIFIED_STACK="${TITAN_UNIFIED_STACK:-0}" \
+    -e TITAN_EXPERIMENTAL_AMPR="${TITAN_EXPERIMENTAL_AMPR:-0}" \
+    -e CARGO_HOME=/work/target/ps5/cargo -v "$PWD:/work" titan-core-ps5 bash ps5/build.sh --inside
 fi
 
 # The bundled ampr-emu-ng must be the released file (SHA256SUMS copied from its GitHub release).
