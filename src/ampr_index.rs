@@ -257,6 +257,7 @@ fn plan(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> Result<Plan> 
     let mut chunks = Vec::with_capacity(blocks.len());
     visit_chunks(path, size, blocks, vol_size, |loc, desc| chunks.push((loc, desc)))?;
     Ok(Plan { chunks, flags: FILE_PACKED })
+}
 
 /// AMPRPAK4 image: 128-byte header, file records, chunk records, one pack record, strings
 /// (paths, then the volume name). `rows` pairs each sorted logical path with its file.
