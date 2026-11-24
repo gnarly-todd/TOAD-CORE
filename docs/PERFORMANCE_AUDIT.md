@@ -67,4 +67,4 @@ A small host-side probe is included: run \`python3 review/bench-web.py http://PS
 
 ## Release policy
 
-The rollback baseline is published separately as the explicitly experimental v1.2-experimental.1 prerelease; the stable v1.2 assets and main remain untouched. See [release notes](../RELEASE-v1.2-experimental.1.md). Retain Fast Kstuff as the production default until a new owner-supplied ELF is explicitly approved. Promote optimizations into \`main\` only after compiled artifact validation and hardware acceptance of game startup, USB replug, installation, saves and rest-mode behavior.
+The rollback baseline is published separately as the explicitly experimental v1.2-experimental prerelease; the stable v1.2 assets and main remain untouched. See [release notes](../RELEASE-v1.2-experimental.md). Retain Fast Kstuff as the production default until a new owner-supplied ELF is explicitly approved. Promote optimizations into \`main\` only after compiled artifact validation and hardware acceptance of game startup, USB replug, installation, saves and rest-mode behavior.

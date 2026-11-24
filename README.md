@@ -4,7 +4,7 @@
 
 ## Version 1.2
 
-> **Experimental performance prerelease:** [v1.2-experimental.1](https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.2-experimental.1) restores the pre-custom-AMPR performance baseline. See [changes from stable v1.2](RELEASE-v1.2-experimental.1.md) and the [performance audit](docs/PERFORMANCE_AUDIT.md). The official component pins remain unchanged. [Stable v1.2](https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.2) remains separate and recommended for fallback.
+> **Experimental performance prerelease:** [v1.2-experimental](https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.2-experimental) restores the pre-custom-AMPR performance baseline. See [changes from stable v1.2](RELEASE-v1.2-experimental.md) and the [performance audit](docs/PERFORMANCE_AUDIT.md). The official component pins remain unchanged. [Stable v1.2](https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.2) remains separate and recommended for fallback.
 
 **Kstuff pinning:** This and all subsequent builds use the user-supplied Fast Kstuff file kstuff1.13-fpkg-dr-test8-rest-fast.elf, SHA-256 221fa41c43597677c1153d5224174be9062105c0c9a3379e96cb45d278aa52fc, until you explicitly supply a replacement. Production build checks reject any different kstuff binary, including the non-fast test8-rest variant.
 

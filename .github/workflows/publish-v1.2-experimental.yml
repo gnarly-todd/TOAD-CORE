@@ -1,0 +1,49 @@
+name: Publish v1.2-experimental prerelease
+on:
+  push:
+    branches: [experimental/performance]
+    paths:
+      - .github/workflows/publish-v1.2-experimental.yml
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: titan-core-v1.2-experimental-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/experimental/performance'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: payload
+          run-id: 45305282232
+          github-token: ${{ github.token }}
+          path: release-files
+      - name: Verify exact rollback artifact and stable release
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = be94c9c164c89775d1129a916b15be7473187c0b
+          gh api repos/$GITHUB_REPOSITORY/releases/tags/v1.2 > stable-before.json
+          jq -e '.id == 456168801 and .prerelease == false and (.assets | map(.id) | sort) == [785124739,785124740]' stable-before.json
+          jq -e '.assets[] | select(.name == "TITAN-CORE.elf") | .digest == "sha256:d40be51dffcb9f184bbb1da3b7e21fb7ad3f1ced69a2a223f3f019076910cd7f"' stable-before.json
+          cd release-files
+          sha256sum -c --strict SHA256SUMS
+          echo '0c9248f588d6b1203ccf8fa8da8a1fa6eeeaea54c6a430aece0f2cb544e9d00f  TITAN-CORE.elf' | sha256sum -c --strict
+          mv TITAN-CORE.elf TITAN-CORE-experimental.elf
+          sha256sum TITAN-CORE-experimental.elf > SHA256SUMS
+      - name: Publish separate prerelease without touching stable
+        run: |
+          set -euo pipefail
+          if gh release view v1.2-experimental --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing experimental release"; exit 1
+          fi
+          gh release create v1.2-experimental --repo "$GITHUB_REPOSITORY" --target 1be3852bf914202608f5a560a1e29883c5743792 --title "TITAN CORE v1.2-experimental (Performance)" --notes-file RELEASE-v1.2-experimental.md --prerelease --latest=false release-files/TITAN-CORE-experimental.elf release-files/SHA256SUMS
+          gh release view v1.2-experimental --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease,isDraft,url,assets
+          gh api repos/$GITHUB_REPOSITORY/releases/tags/v1.2 > stable-after.json
+          diff -u <(jq -S '{id,tag_name,name,body,prerelease,assets:[.assets[] | {id,name,digest}]}' stable-before.json) <(jq -S '{id,tag_name,name,body,prerelease,assets:[.assets[] | {id,name,digest}]}' stable-after.json)
+          test "$(gh api repos/$GITHUB_REPOSITORY/branches/main --jq .commit.sha)" = be94c9c164c89775d1129a916b15be7473187c0b

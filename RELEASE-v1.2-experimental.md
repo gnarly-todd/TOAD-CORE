@@ -1,4 +1,4 @@
-# TITAN CORE v1.2 Experimental Performance 1
+# TITAN CORE v1.2 Experimental Performance
 
 **EXPERIMENTAL PRERELEASE — not a replacement for stable v1.2.** This is the rollback build from before the custom AMPR experiment. Stable v1.2 and main remain untouched.
 
