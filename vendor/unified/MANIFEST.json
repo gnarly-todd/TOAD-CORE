@@ -1,14 +1,16 @@
 {
-  "retrieved": "2026-11-21",
+  "retrieved": "2026-11-23",
   "components": [
     {
       "name": "kstuff-fpkg",
       "repository": "https://github.com/EchoStretch/kstuff-lite",
-      "file": "kstuff1.13-fpkg-dr-test8-rest.elf",
-      "sha256": "127332652374157b8ee0f5eb1128976f9055b88df5da89c0c54183e9c326fc7f",
+      "file": "kstuff1.13-fpkg-dr-test8-rest-fast.elf",
+      "sha256": "221fa41c43597677c1153d5224174be9062105c0c9a3379e96cb45d278aa52fc",
       "license": "GPL-3.0-or-later (source file headers)",
       "embedded_version": "1.13-fpkg-dr-test8-rest",
-      "provenance": "User-supplied ELF hash matched the pinned 2026-11-21 import; matching source revision and upstream release digest not independently verified"
+      "provenance": "The user's fast ELF (2026-11-23) matched the imported archive byte-for-byte by SHA-256. Embedded version string omits fast; upstream matching source revision is unverified.",
+      "display_version": "1.13-fpkg-dr-test8-rest-fast",
+      "variant": "fast"
     },
     {
       "name": "ShadowMountPlus",

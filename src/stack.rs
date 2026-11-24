@@ -15,9 +15,9 @@ pub fn native_title_permitted(tid:&str)->bool{ NATIVE_TITLES.get_or_init(Default
 pub fn native_permitted()->bool{NATIVE_ALLOWED.load(Ordering::Acquire)}
 use std::time::Duration;
 
-const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff1.13-fpkg-dr-test8-rest.elf");
+const KSTUFF: &[u8] = include_bytes!("../vendor/unified/kstuff1.13-fpkg-dr-test8-rest-fast.elf");
 const SHADOW: &[u8] = include_bytes!("../vendor/unified/shadowmountplus.elf");
-const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff1.13-fpkg-dr-test8-rest.elf";
+const KSTUFF_PATH: &str = "/data/titan-core/payloads/kstuff1.13-fpkg-dr-test8-rest-fast.elf";
 const SHADOW_PATH: &str = "/data/titan-core/payloads/shadowmountplus.elf";
 // system_tmp is boot-scoped. Never remove another launch's attempt marker.
 #[cfg(target_os = "freebsd")]
@@ -144,7 +144,7 @@ impl Stack {
         let s = self.snapshot.lock().unwrap_or_else(|e| e.into_inner());
         json!({"phase":s.phase,"detail":s.detail,"firmware":s.firmware,"api_port":s.port,
             "kstuff_ready":s.kstuff,"shadowmount_ready":s.shadow,"library_fresh":s.updated,
-            "kstuff_bundle":"1.13-fpkg-dr-test8-rest","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
+            "kstuff_bundle":"1.13-fpkg-dr-test8-rest-fast","shadowmount_bundle":"1.7beta12","mount_owner":"per-title","mode":"combined","native_ready":native_permitted()})
     }
     pub fn games(&self) -> Vec<Value> { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).games.clone() }
     pub fn port(&self) -> u16 { self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).port }
@@ -241,7 +241,7 @@ impl Stack {
                 install(KSTUFF_PATH, KSTUFF)?; install(SHADOW_PATH, SHADOW)?;
                 // One atomic attempt per boot, including across TITAN restarts.
                 let mut marker = OpenOptions::new().write(true).create_new(true).open(&attempt).map_err(|e| format!("Startup attempt already owned or unavailable: {e}"))?;
-                marker.write_all(b"ShadowMountPlus 1.7beta12 + kstuff 1.13-fpkg-dr-test8-rest\n").map_err(|e| e.to_string())?;
+                marker.write_all(b"ShadowMountPlus 1.7beta12 + kstuff 1.13-fpkg-dr-test8-rest-fast\n").map_err(|e| e.to_string())?;
                 self.phase("starting", "Starting ShadowMount before kstuff");
                 // ShadowMount creates its no-automount sentinel before waiting for kstuff.
                 if shadow_process {
@@ -256,7 +256,7 @@ impl Stack {
                     }
                     if !sentinel { return Err("ShadowMount startup sentinel not observed; kstuff was not dispatched".into()); }
                     if !kstuff_ready() && !kstuff_process {
-                        self.phase("starting", "Starting bundled kstuff 1.13-fpkg-dr-test8-rest");
+                        self.phase("starting", "Starting bundled kstuff 1.13-fpkg-dr-test8-rest-fast");
                         if let Err(e) = dispatch(KSTUFF_PATH) { log!("unified: kstuff dispatch uncertain: {e}; not retrying"); }
                     }
                 }

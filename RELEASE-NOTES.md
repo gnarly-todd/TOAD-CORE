@@ -1,3 +1,11 @@
+# TITAN CORE v1.1b - Fast Kstuff pre-release
+
+This optional pre-release replaces only the checksum-pinned kstuff test8-rest ELF with the user-provided test8-rest-fast variant. Runtime process name stays titan-core.elf. App SemVer: 1.1.1-beta.1.
+
+The internal version string remains 1.13-fpkg-dr-test8-rest but the selected binary and SHA-256 identify the Fast/PPR variant. Speed and console stability have not been benchmarked.
+
+---
+
 # TITAN CORE v1.1 (first public release of this fork)
 
 Release: https://github.com/gnarly-todd/TOAD-CORE/releases/tag/v1.1
