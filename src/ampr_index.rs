@@ -135,17 +135,8 @@ fn put64(b: &mut [u8], at: usize, v: u64) {
 /// AMPRIDX3 image of `rows` (already sorted by folded path, no duplicates):
 /// records (path off/len u32, size u64, mtime i64), NUL-terminated path blob, 16-aligned
 /// linear-probe slot table of next_pow2(2n) slots (hash u64, 1-based id u32, flags u32).
-fn build_index(rows: &[(String, u64)], mtime: i64) -> Vec<u8> {
-    let mut records = Vec::with_capacity(rows.len() * IDX_RECORD);
-    let mut paths = Vec::new();
-    for (path, size) in rows {
-        records.extend_from_slice(&(paths.len() as u32).to_le_bytes());
-        records.extend_from_slice(&(path.len() as u32).to_le_bytes());
-        records.extend_from_slice(&size.to_le_bytes());
-        records.extend_from_slice(&mtime.to_le_bytes());
-        paths.extend_from_slice(path.as_bytes());
-        paths.push(0);
-    }
+fn build_index(rows: &[(String, &IndexFile)], mtime: i64) -> Vec<u8> {
+    let path_bytes: usize = rows.iter().map(|(p, _)| p.len() + 1).sum();
     let count = (rows.len() * 2).next_power_of_two().max(2);
     let mask = count - 1;
     let mut slots = vec![(0u64, 0u32, 0u32); count];
@@ -162,18 +153,30 @@ fn build_index(rows: &[(String, u64)], mtime: i64) -> Vec<u8> {
         }
         slots[at] = (h, i as u32 + 1, if shared { IDX_SLOT_SHARED } else { 0 });
     }
-    let slots_at = (IDX_HEADER + records.len() + paths.len()).next_multiple_of(IDX_SLOT);
+    let slots_at = (IDX_HEADER + rows.len() * IDX_RECORD + path_bytes).next_multiple_of(IDX_SLOT);
+    // Write directly into the final image. The old writer built and copied a
+    // full records buffer and a separate string buffer on every cache build.
     let mut out = Vec::with_capacity(slots_at + count * IDX_SLOT);
     out.extend_from_slice(IDX_MAGIC);
     out.extend_from_slice(&3u32.to_le_bytes());
     out.extend_from_slice(&(IDX_RECORD as u32).to_le_bytes());
     out.extend_from_slice(&(rows.len() as u64).to_le_bytes());
-    out.extend_from_slice(&(paths.len() as u64).to_le_bytes());
+    out.extend_from_slice(&(path_bytes as u64).to_le_bytes());
     out.extend_from_slice(&(slots_at as u64).to_le_bytes());
     out.extend_from_slice(&(IDX_SLOT as u32).to_le_bytes());
     out.extend_from_slice(&(count as u32).to_le_bytes());
-    out.extend_from_slice(&records);
-    out.extend_from_slice(&paths);
+    let mut offset = 0usize;
+    for (path, file) in rows {
+        out.extend_from_slice(&(offset as u32).to_le_bytes());
+        out.extend_from_slice(&(path.len() as u32).to_le_bytes());
+        out.extend_from_slice(&file.size.to_le_bytes());
+        out.extend_from_slice(&mtime.to_le_bytes());
+        offset += path.len() + 1;
+    }
+    for (path, _) in rows {
+        out.extend_from_slice(path.as_bytes());
+        out.push(0);
+    }
     out.resize(slots_at, 0);
     for (h, id, flags) in slots {
         out.extend_from_slice(&h.to_le_bytes());
@@ -181,12 +184,6 @@ fn build_index(rows: &[(String, u64)], mtime: i64) -> Vec<u8> {
         out.extend_from_slice(&flags.to_le_bytes());
     }
     out
-}
-
-/// One packed file's chunk records (location u64, descriptor u32) and file flags.
-struct Plan {
-    chunks: Vec<(u64, u32)>,
-    flags: u32,
 }
 
 /// One chunk per compressed block at block_shift 18 (manifest.rs `validate_file`: chunk_count =
@@ -253,12 +250,6 @@ fn visit_chunks(
     Ok(())
 }
 
-fn plan(path: &str, size: u64, blocks: &[Chunk], vol_size: u64) -> Result<Plan> {
-    let mut chunks = Vec::with_capacity(blocks.len());
-    visit_chunks(path, size, blocks, vol_size, |loc, desc| chunks.push((loc, desc)))?;
-    Ok(Plan { chunks, flags: FILE_PACKED })
-}
-
 /// AMPRPAK4 image: 128-byte header, file records, chunk records, one pack record, strings
 /// (paths, then the volume name). `rows` pairs each sorted logical path with its file.
 fn build_manifest(rows: &[(String, &IndexFile)], mtime: i64, pkg_len: u64) -> Result<Vec<u8>> {
@@ -271,7 +262,8 @@ fn build_manifest(rows: &[(String, &IndexFile)], mtime: i64, pkg_len: u64) -> Re
         (at, s.len() as u32)
     };
     let mut files = vec![0u8; rows.len() * FILE_RECORD];
-    let mut chunks = Vec::new();
+    let chunk_capacity: usize = rows.iter().map(|(_, f)| f.chunks.as_ref().map_or(0, |b| b.len() * CHUNK_RECORD)).sum();
+    let mut chunks = Vec::with_capacity(chunk_capacity);
     for (i, (path, f)) in rows.iter().enumerate() {
         let r = &mut files[i * FILE_RECORD..(i + 1) * FILE_RECORD];
         put64(r, 0, pak_path_hash(path.as_bytes()));
@@ -281,15 +273,15 @@ fn build_manifest(rows: &[(String, &IndexFile)], mtime: i64, pkg_len: u64) -> Re
         put32(r, 32, at);
         put32(r, 36, len);
         let Some(blocks) = &f.chunks else { continue };
-        let p = plan(path, f.size, blocks, vol_size)?;
         put32(r, 24, (chunks.len() / CHUNK_RECORD) as u32);
-        put32(r, 28, p.chunks.len() as u32);
-        put32(r, 40, p.flags);
+        put32(r, 28, blocks.len() as u32);
+        put32(r, 40, FILE_PACKED);
         r[44] = BLOCK_SHIFT as u8;
-        for (loc, desc) in p.chunks {
+        // Encode into the final chunk table without a per-file temporary Plan.
+        visit_chunks(path, f.size, blocks, vol_size, |loc, desc| {
             chunks.extend_from_slice(&loc.to_le_bytes());
             chunks.extend_from_slice(&desc.to_le_bytes());
-        }
+        })?;
     }
     let mut pack = vec![0u8; PACK_RECORD];
     put64(&mut pack, 0, vol_size - PAGE);
@@ -357,6 +349,23 @@ fn write_atomic(dir: &Path, name: &str, data: &[u8]) -> Result<()> {
     std::fs::rename(&tmp, dir.join(name))
 }
 
+/// Cheap integrity guard used by the scan: verify the required generated files
+/// exist, are at least header length and have the expected magic. Do not run
+/// full-file CRCs on the critical path or read game-owned cache files.
+pub fn outputs_present(dir: &Path) -> bool {
+    use std::io::Read;
+    fn has_header(path: &Path, magic: &[u8; 8], min_len: usize) -> bool {
+        let Ok(mut file) = std::fs::File::open(path) else { return false };
+        if !file.metadata().is_ok_and(|m| m.is_file() && m.len() >= min_len as u64) {
+            return false;
+        }
+        let mut bytes = [0u8; 8];
+        file.read_exact(&mut bytes).is_ok() && &bytes == magic
+    }
+    has_header(&dir.join(INDEX_NAME), IDX_MAGIC, IDX_HEADER)
+        && has_header(&dir.join(MANIFEST_NAME), PAK_MAGIC, PAK_HEADER)
+}
+
 /// Writes both index files into `dir` (the game's cache dir, seen as /app0).
 /// `pkg` is the .pkg (ng opens the path in the runtime package descriptor): its size bounds the volume and its mtime goes in
 /// every record.
@@ -381,10 +390,44 @@ pub fn write(dir: &Path, pkg: &Path, files: &[IndexFile]) -> std::io::Result<()>
     if let Some(w) = rows.windows(2).find(|w| w[0].0 == w[1].0) {
         return Err(bad(format!("{} and {} differ only in case", w[0].1, w[1].1)));
     }
-    let idx_rows: Vec<(String, u64)> = rows.iter().map(|r| (r.1.clone(), r.2.size)).collect();
     let pak_rows: Vec<(String, &IndexFile)> = rows.into_iter().map(|r| (r.1, r.2)).collect();
     let manifest = build_manifest(&pak_rows, mtime, meta.len())?;
-    let index = build_index(&idx_rows, mtime);
+    let index = build_index(&pak_rows, mtime);
     write_atomic(dir, MANIFEST_NAME, &manifest)?;
     write_atomic(dir, INDEX_NAME, &index)
+}
+
+#[cfg(test)]
+mod perf_tests {
+    use super::*;
+
+    #[test]
+    fn crc32_matches_reference_vector() {
+        assert_eq!(crc32(&[b"123456789"]), 0xcbf4_3926);
+    }
+
+    #[test]
+    fn index_and_manifest_keep_expected_layout() {
+        let entry = IndexFile {
+            path: "data/sample.bin".into(),
+            size: BLOCK,
+            chunks: Some(vec![Chunk {
+                pkg_off: PAGE,
+                stored_len: BLOCK as u32,
+                raw_len: BLOCK as u32,
+                compression: None,
+            }]),
+        };
+        let rows = vec![(format!("{APP0}{}", entry.path), &entry)];
+        let index = build_index(&rows, 123);
+        assert_eq!(&index[..8], IDX_MAGIC);
+        assert_eq!(u64::from_le_bytes(index[16..24].try_into().unwrap()), 1);
+        assert_eq!(u64::from_le_bytes(index[24..32].try_into().unwrap()), (rows[0].0.len() + 1) as u64);
+        let manifest = build_manifest(&rows, 123, 2 * 1024 * 1024).unwrap();
+        assert_eq!(&manifest[..8], PAK_MAGIC);
+        assert_eq!(u64::from_le_bytes(manifest[40..48].try_into().unwrap()), 1);
+        assert_eq!(u64::from_le_bytes(manifest[48..56].try_into().unwrap()), 1);
+        assert_eq!(u32::from_le_bytes(manifest[PAK_PAYLOAD_CRC_AT..PAK_PAYLOAD_CRC_AT + 4].try_into().unwrap()),
+            crc32(&[&manifest[PAK_HEADER..]]));
+    }
 }
