@@ -36,7 +36,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use web::State;
 
 pub const DATA_DIR: &str = "/data/titan-core";
@@ -107,7 +107,9 @@ fn build_and_register(state: &State, s: &Settings, src: &Source, fresh: &Fresh, 
         }
         state.update(&src.path, |g| g.status = "building");
         check_space(state, s);
+        let started = Instant::now();
         let r = cache::build(src, s);
+        if s.debug { log!("perf: cache build {tid} took {} ms", started.elapsed().as_millis()); }
         check_space(state, s);
         r?;
     }
@@ -416,7 +418,12 @@ fn main() {
         let mut roots = if s.scan_paths.is_empty() { storage::default_scan_roots() } else { s.scan_paths.clone() };
         roots.extend(relocation::scan_roots(std::path::Path::new(relocation::ROOT)));
         let mut install_roots=installer::roots();install_roots.extend(roots.iter().cloned());
+        let scan_started = Instant::now();
         let mut r = scan::scan(&install_roots, s.backports, s.stability_wait_secs);
+        if s.debug {
+            log!("perf: native discovery {} games across {} roots in {} ms",
+                  r.games.len(), install_roots.len(), scan_started.elapsed().as_millis());
+        }
         #[cfg(feature="unified-stack")]
         if s.auto_import_installed && state.stack.native_ready(){
             let native=r.games.iter().map(|g|g.title_id.clone()).collect();
@@ -468,7 +475,8 @@ fn main() {
         }
         publish(&state, &r);
         // A source that left the scan (USB unplugged) goes through register::mount again when back.
-        registered.retain(|t| r.games.iter().any(|g| &g.title_id == t));
+        let available: HashSet<&str> = r.games.iter().map(|g| g.title_id.as_str()).collect();
+        registered.retain(|t| available.contains(t.as_str()));
         // Built caches are overlaid at launch from the start, not only once the scan reaches them.
         check_space(&state, &s);
         let mut staged = Vec::new();

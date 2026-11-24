@@ -97,9 +97,32 @@ fn pkg_param(path: &Path, size: u64, mtime: SystemTime) -> PkgParam {
     result
 }
 
-/// SMP order (resolve_backport_path_for_title): the game's own scan root, the other roots,
-/// then /data/homebrew (SMP's installed backports) even when custom scanpath lines replace it.
-fn backport_for(owner: &Path, roots: &[String], tid: &str) -> Option<PathBuf> {
+/// Build a sorted snapshot of backport directories once per scan, rather than
+/// reopening and sorting every root's backports for each discovered title.
+/// Directory symlinks retain the original is_dir behavior; no writes are made.
+type BackportIndex = HashMap<PathBuf, Vec<PathBuf>>;
+
+fn index_backports(roots: &[String]) -> BackportIndex {
+    let mut index = HashMap::new();
+    for root in roots.iter().map(Path::new).chain(std::iter::once(Path::new("/data/homebrew"))) {
+        let dir = root.join("backports");
+        if index.contains_key(&dir) {
+            continue;
+        }
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        let mut paths: Vec<PathBuf> = entries.flatten().map(|e| e.path())
+            .filter(|p| p.is_dir()).collect();
+        paths.sort();
+        index.insert(dir, paths);
+    }
+    index
+}
+
+/// SMP priority: owning root first, then configured roots, then /data/homebrew.
+/// Exact TID folder wins over alphabetic TID-prefix matches within each root.
+/// The directory snapshot is per scan, so newly connected backports are picked
+/// up on the next scan without repeated USB directory walks per title.
+fn backport_for(owner: &Path, roots: &[String], tid: &str, index: &BackportIndex) -> Option<PathBuf> {
     let mut order: Vec<&Path> = vec![owner];
     for root in roots.iter().map(Path::new).chain([Path::new("/data/homebrew")]) {
         if !order.contains(&root) {
@@ -112,13 +135,10 @@ fn backport_for(owner: &Path, roots: &[String], tid: &str) -> Option<PathBuf> {
         if exact.is_dir() {
             return Some(exact);
         }
-        let Ok(entries) = fs::read_dir(&dir) else { continue };
-        let mut matches: Vec<_> = entries.flatten().map(|e| e.path())
-            .filter(|p| p.is_dir() && p.file_name().is_some_and(|n| n.to_string_lossy().starts_with(tid)))
-            .collect();
-        matches.sort();
-        if let Some(path) = matches.into_iter().next() {
-            return Some(path);
+        if let Some(path) = index.get(&dir).and_then(|paths| paths.iter().find(|p| {
+            p.file_name().is_some_and(|name| name.to_string_lossy().starts_with(tid))
+        })) {
+            return Some(path.clone());
         }
     }
     None
@@ -201,6 +221,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
     let mut result = ScanResult { games: Vec::new(), duplicates: Vec::new(), errors: Vec::new(), unstable: Vec::new() };
     let mut seen = HashSet::new();
     let cached = cached_pkgs();
+    let indexed_backports = if backports { index_backports(roots) } else { BackportIndex::new() };
     let installed_roots = crate::installer::roots();
     // Kraken Mount 0.3.1: direct root entries always precede one-level nested
     // entries, so a game in a subfolder cannot shadow a direct-root copy.
@@ -302,7 +323,7 @@ pub fn scan(roots: &[String], backports: bool, stability_wait: u64) -> ScanResul
             }
             let source = Source {
                 drive: crate::storage::drive_of(&path),
-                backport: if backports { backport_for(&root, roots, &title_id) } else { None },
+                backport: if backports { backport_for(&root, roots, &title_id, &indexed_backports) } else { None },
                 path, kind, title_id, title_name, version, size,
             };
             if seen.insert(source.title_id.clone()) {
@@ -354,4 +375,40 @@ pub fn installed_source(path:&Path,expected:&str)->io::Result<Source>{
     let meta=fs::metadata(path)?;let (tid,name,version)=pkg_param(path,meta.len(),meta.modified()?).map_err(|e|Error::new(ErrorKind::InvalidData,e))?;
     if tid!=expected{return Err(Error::new(ErrorKind::InvalidData,"Installed package metadata title mismatch"));}
     Ok(Source{path:path.to_owned(),kind:Kind::Pkg,title_id:tid,title_name:name,version,size:meta.len(),drive:crate::storage::drive_of(path),backport:None})
+}
+
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+
+    #[test]
+    fn indexed_backports_preserve_owner_and_exact_match_priority() {
+        let base = std::env::temp_dir().join(format!(
+            "titan-backport-index-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let a = base.join("owner");
+        let b = base.join("fallback");
+        let tid = "PPSA12345";
+        for entry in [
+            a.join("backports/PPSA12345-patch"),
+            a.join("backports/PPSA12345"),
+            b.join("backports/PPSA12345"),
+        ] {
+            fs::create_dir_all(entry).unwrap();
+        }
+        let roots = vec![a.to_string_lossy().into_owned(), b.to_string_lossy().into_owned()];
+        let indexed = index_backports(&roots);
+        assert_eq!(backport_for(&a, &roots, tid, &indexed),
+                   Some(a.join("backports/PPSA12345")));
+        assert_eq!(backport_for(&b, &roots, tid, &indexed),
+                   Some(b.join("backports/PPSA12345")));
+        fs::remove_dir_all(a.join("backports/PPSA12345")).unwrap();
+        let indexed = index_backports(&roots);
+        assert_eq!(backport_for(&a, &roots, tid, &indexed),
+                   Some(a.join("backports/PPSA12345-patch")));
+        fs::remove_dir_all(base).unwrap();
+    }
 }
