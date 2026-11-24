@@ -34,3 +34,41 @@ Sources:
 - https://github.com/quer3q/ampr-emu-ng/blob/v0.5.1/docs/read-path-tuning.md
 - https://github.com/quer3q/ampr-emu-ng/blob/v0.5.1/docs/debug-build.md
 - https://github.com/gnarly-todd/TOAD-CORE/blob/experimental/performance/src/ampr_index.rs
+
+## Separate patched AMPR runtime (new experimental target)
+
+The independent source patch at review/ampr-experimental/apply.py checks out
+exactly upstream AMPR-EMU-NG v0.5.1 commit
+e1789c11bf36c2f4e9b67c5452935c1816674a2c. This is not a byte patch
+of the bundled official v0.5.1 binary; that official file stays unchanged
+and continues to be checked by SHA-256 on every ordinary build.
+
+AMPR runtime changes in the patched source:
+
+1. pack/schedule.rs: when no jobs exist in a priority lane under PACK_M,
+   do not recheck that same empty lane 2-4 times during one weighted
+   scheduling pass. Retain the 4:2:1 cursor, FIFO order, latency/bulk
+   reservation and priority decisions. Delete the redundant second sweep
+   because the weighted pass already checks all three lanes. Include a
+   regression test of the empty-queue cursor.
+2. rt/tune.rs: experiment with decoded-cache protection at 2 hits
+   (upstream 3) and 60% maximum protected share (upstream 50%).
+   These are explicitly unmeasured settings and must be A/B compared.
+   The debug runtime provides existing cache and I/O metrics and tuning.
+
+The separate .github/workflows/experimental-ampr.yml workflow checks out
+the source, confirms its git SHA, applies the patch, runs upstream host
+tests, builds release and debug .sprx with upstream's official PS5 SDK
+toolchain, and builds a TITAN CORE ELF with an explicit Cargo feature.
+The official SPRX remains the default in normal builds; the alternate
+TITAN_EXPERIMENTAL_AMPR=1 path is opt-in. The artifact is named
+TITAN-CORE-experimental-AMPR and contains the embedded-test ELF, both
+custom SPRXs, and SHA-256 checksums.
+
+No speculative pread-thread increase, memory-cap increase, read-ahead,
+Kraken decode format changes, live mount/unmount changes, or service
+readiness reductions were introduced. Upstream v0.5.1 already provides
+load-responsive worker growth, cache expansion from freed index memory,
+Kraken scratch reuse and game-thread pressure recovery. The custom build
+is not a performance or stability confirmation until PS5 comparisons
+have run on representative PKG and folder games.
