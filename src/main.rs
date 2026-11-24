@@ -303,9 +303,17 @@ fn save_self_copy() {
     }
 }
 
-/// The ampr-emu-ng release bundled in the ELF (vendor/ampr-emu-ng; ps5/build.sh checks its SHA-256).
+/// The official AMPR-EMU-NG release stays pinned for all ordinary builds.
+/// Experimental builds embed their separately compiled PRX only when the
+/// explicit feature is selected. The bundled ownership mark permits rollback.
+#[cfg(not(feature = "experimental-ampr"))]
 const BUNDLED_AMPR: &[u8] = include_bytes!("../vendor/ampr-emu-ng/libSceAmpr.sprx");
+#[cfg(feature = "experimental-ampr")]
+const BUNDLED_AMPR: &[u8] = include_bytes!("../target/ps5/libSceAmpr-experimental.sprx");
+#[cfg(not(feature = "experimental-ampr"))]
 const BUNDLED_AMPR_VERSION: &str = include_str!("../vendor/ampr-emu-ng/VERSION");
+#[cfg(feature = "experimental-ampr")]
+const BUNDLED_AMPR_VERSION: &str = "0.5.1 (TITAN experimental scheduling/cache patch)";
 /// "<len> <crc32>" of the bundled copy last written. Outside AMPR_DIR: every file there goes into fakelib/.
 const BUNDLED_MARK: &str = "/data/titan-core/ampr.bundled";
 
