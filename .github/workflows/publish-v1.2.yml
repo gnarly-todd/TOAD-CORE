@@ -1,0 +1,78 @@
+name: Publish TITAN CORE v1.2 (AMPR 0.5.1)
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v1.2.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: titan-core-v1.2-publishing
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify and import official AMPR v0.5.1 matching uploaded SPRX
+        run: bash review/import-ampr-v0.5.1.sh
+      - name: Commit verified AMPR update to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/ampr-emu-ng/libSceAmpr.sprx \
+            vendor/ampr-emu-ng/upstream-v0.5.1.tar.gz \
+            vendor/ampr-emu-ng/VERSION \
+            vendor/ampr-emu-ng/SHA256SUMS \
+            vendor/ampr-emu-ng/TITAN_BRANDING.md \
+            vendor/ampr-emu-ng/UPSTREAM_V051.md README.md
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "Bundle SHA256-verified official AMPR v0.5.1; retain Fast kstuff"
+          git push origin HEAD:main
+          echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Verify package version and all component pins
+        run: |
+          grep -q '^version = "1.2.0"$' Cargo.toml
+          python3 review/verify-kstuff-fast-pin.py
+          python3 review/verify-unified-payloads.py
+          python3 review/sync-component-readme.py --check
+          (cd vendor/ampr-emu-ng && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
+          (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
+      - name: Build PS5 production ELF
+        run: TITAN_UNIFIED_STACK=1 bash ps5/build.sh
+      - name: Verify executable and checksum
+        run: |
+          cp target/ps5/titan-core.elf TITAN-CORE.elf
+          sha256sum TITAN-CORE.elf > SHA256SUMS
+          sha256sum -c --strict SHA256SUMS
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path("TITAN-CORE.elf").read_bytes()
+          assert b[:4]==b"\x7fELF"
+          for text in (b"1.2.0", b"titan-core.elf", b"ampr-emu-ng 0.5.1",
+                       b"1.13-fpkg-dr-test8-rest-fast", b"1.7beta12"):
+              assert text in b, f"Missing expected binary identity: {text!r}"
+          print(f"Verified TITAN CORE v1.2, {len(b):,} bytes")
+          PY
+      - name: Publish stable v1.2 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing v1.2"
+            exit 1
+          fi
+          gh release create v1.2 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_COMMIT" \
+            --title "TITAN CORE v1.2 (AMPR 0.5.1)" \
+            --notes-file RELEASE-v1.2.md \
+            --latest \
+            TITAN-CORE.elf SHA256SUMS
+          gh release view v1.2 --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,url,assets
