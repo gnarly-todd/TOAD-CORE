@@ -9,9 +9,7 @@ python3 review/verify-kstuff-fast-pin.py
 if [[ "${1:-}" != --inside ]]; then
   docker build -t titan-core-ps5 ps5
   exec docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
-    -e CARGO_BUILD_JOBS=2 -e TITAN_UNIFIED_STACK="${TITAN_UNIFIED_STACK:-0}" \
-    -e TITAN_EXPERIMENTAL_AMPR="${TITAN_EXPERIMENTAL_AMPR:-0}" \
-    -e CARGO_HOME=/work/target/ps5/cargo -v "$PWD:/work" titan-core-ps5 bash ps5/build.sh --inside
+    -e CARGO_BUILD_JOBS=2 -e TITAN_UNIFIED_STACK="${TITAN_UNIFIED_STACK:-0}" -e CARGO_HOME=/work/target/ps5/cargo -v "$PWD:/work" titan-core-ps5 bash ps5/build.sh --inside
 fi
 
 # The bundled ampr-emu-ng must be the released file (SHA256SUMS copied from its GitHub release).
@@ -25,14 +23,6 @@ if [[ "${TITAN_UNIFIED_STACK:-0}" == 1 ]]; then
   (cd vendor/dlc_emu && sha256sum -c --strict SHA256SUMS)
   (cd vendor/pgo_stub && sha256sum -c --strict SHA256SUMS)
   features=(--features unified-stack)
-fi
-if [[ "${TITAN_EXPERIMENTAL_AMPR:-0}" == 1 ]]; then
-  # Deliberate opt-in: official vendored AMPR remains hash-verified above.
-  test -s target/ps5/libSceAmpr-experimental.sprx || {
-    echo "Missing separately built experimental AMPR SPRX" >&2
-    exit 1
-  }
-  features+=(--features experimental-ampr)
 fi
 out=target/ps5
 cc="$PS5_PAYLOAD_SDK/bin/prospero-clang"

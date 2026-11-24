@@ -11,8 +11,6 @@ members = [".", "crates/titan-core-pkg"]
 # Stage 2 of ps5/build.sh: embeds stage 1 (env TITAN_SELF_ELF) to save it as the tile's copy.
 self-copy = []
 unified-stack = []
-# Only selected by the separate experimental AMPR workflow; never a release default.
-experimental-ampr = []
 
 [dependencies]
 titan-core-pkg = { path = "crates/titan-core-pkg" }

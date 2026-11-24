@@ -137,14 +137,6 @@ TITAN_UNIFIED_STACK=1 bash ps5/build.sh
 
 The build verifies bundled runtime/service hashes and builds both ELF stages. The packages are `titan-core` and `crates/titan-core-pkg`; the Docker toolchain image is `titan-core-ps5` and the output is `target/ps5/titan-core.elf`. Upstream runtime protocol filenames remain compatible. See [architecture](DESIGN.md), [validation](docs/VALIDATION.md) and [credits](CREDITS.md).
 
-## Experimental AMPR runtime (performance branch only)
-
-The [experimental/performance](https://github.com/gnarly-todd/TOAD-CORE/tree/experimental/performance) branch includes a **separate, opt-in AMPR-EMU-NG 0.5.1 runtime build**, not a change to the official bundled library or stable v1.2 release. The [experimental AMPR workflow](https://github.com/gnarly-todd/TOAD-CORE/actions/workflows/experimental-ampr.yml) checks out the exact upstream v0.5.1 commit, applies the source patch, runs its host tests, builds a custom release/debug SPRX, and embeds the release variant in an experimental TITAN CORE ELF.
-
-Experimental AMPR modifications: skip redundant queue scans while preserving priority order, promote decoded-cache chunks after 2 hits instead of 3, and allow a protected-cache share of 60% instead of 50%. Other performance-branch changes reduce cache validation and index-build allocations and repeated cache-size disk walks. These are **hypotheses awaiting original-PS5 benchmarks**, not verified game-loading gains. Fast Kstuff test8-rest-fast, ShadowMountPlus, save handling and service readiness remain pinned. The stock release binary remains the rollback baseline.
-
-See [AMPR source/build details](docs/AMPR_PERFORMANCE_REVIEW.md) and [full audit](docs/PERFORMANCE_AUDIT.md). When the separate workflow passes, its Actions artifact is **TITAN-CORE-experimental-AMPR**, containing the test ELF, both custom SPRX variants and SHA-256 checksums. The ordinary build workflow remains an official-AMPR comparison build.
-
 ## License and credits
 
 GPL-3.0-or-later. TITAN CORE is a derivative/aggregate project, with original authorship and upstream notices retained. The bundled runtime is the verified upstream ampr-emu-ng v0.5.1 binary (the previous custom AMPR 0.4.0 PLAY NO LIMIT branding remains historical only). Bundled component source snapshots, modified runtime source and notices are included under `vendor/`.
